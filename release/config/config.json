@@ -1,0 +1,20 @@
+{
+  "listen": "::",
+  "listen_port": 8080,
+  "endpoints": {
+    "/geoip/{name}.srs": {
+      "type": "file",
+      "source": "remote",
+      "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/refs/heads/rule-set/gepip-{{ .name }}.srs",
+      "source_type": "binary",
+      "target_type": "binary"
+    },
+    "/geosite/{name}.srs": {
+      "type": "file",
+      "source": "remote",
+      "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/refs/heads/rule-set/geosite-{{ .name }}.srs",
+      "source_type": "binary",
+      "target_type": "binary"
+    }
+  }
+}

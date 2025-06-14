@@ -1,0 +1,23 @@
+-s dir
+--name srsc
+--category net
+--license GPL-3.0-or-later
+--description "The universal proxy platform."
+--url "https://srsc.sagernet.org/"
+--maintainer "nekohasekai <contact-git@sekai.icu>"
+--deb-field "Bug: https://github.com/SagerNet/srsc/issues"
+--no-deb-generate-changes
+--config-files /etc/srsc/config.json
+--after-install release/config/srsc.postinst
+
+release/config/config.json=/etc/srsc/config.json
+
+release/config/srsc.service=/usr/lib/systemd/system/srsc.service
+release/config/srsc@.service=/usr/lib/systemd/system/srsc@.service
+release/config/srsc.sysusers=/usr/lib/sysusers.d/srsc.conf
+
+release/completions/srsc.bash=/usr/share/bash-completion/completions/srsc.bash
+release/completions/srsc.fish=/usr/share/fish/vendor_completions.d/srsc.fish
+release/completions/srsc.zsh=/usr/share/zsh/site-functions/_srsc
+
+LICENSE=/usr/share/licenses/srsc/LICENSE

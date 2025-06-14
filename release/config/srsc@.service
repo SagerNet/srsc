@@ -1,0 +1,18 @@
+[Unit]
+Description=sing-box rule-set convertor service
+Documentation=https://srsc.sagernet.org
+After=network.target nss-lookup.target network-online.target
+
+[Service]
+User=srsc
+StateDirectory=srsc-%i
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+ExecStart=/usr/bin/srsc -D /var/lib/srsc-%i -C /etc/srsc/%i.json run
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=10s
+LimitNOFILE=infinity
+
+[Install]
+WantedBy=multi-user.target
