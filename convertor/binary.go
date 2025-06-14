@@ -18,11 +18,11 @@ func (s *RuleSetBinary) Type() string {
 	return C.ConvertorTypeRuleSetBinary
 }
 
-func (s *RuleSetBinary) ContentType() string {
+func (s *RuleSetBinary) ContentType(_ adapter.ConvertOptions) string {
 	return "application/octet-stream"
 }
 
-func (s *RuleSetBinary) From(ctx context.Context, binary []byte) (*option.PlainRuleSetCompat, error) {
+func (s *RuleSetBinary) From(ctx context.Context, binary []byte, _ adapter.ConvertOptions) (*option.PlainRuleSetCompat, error) {
 	options, err := srs.Read(bytes.NewReader(binary), true)
 	if err != nil {
 		return nil, err

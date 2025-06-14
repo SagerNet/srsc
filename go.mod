@@ -4,10 +4,13 @@ go 1.23.1
 
 require (
 	github.com/go-chi/chi/v5 v5.2.1
+	github.com/klauspost/compress v1.17.11
+	github.com/openacid/low v0.1.21
 	github.com/redis/go-redis/v9 v9.10.0
 	github.com/sagernet/sing v0.6.11-0.20250521033217-30d675ea099b
 	github.com/sagernet/sing-box v1.12.0-beta.24
 	github.com/spf13/cobra v1.9.1
+	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/mod v0.25.0
 	golang.org/x/net v0.41.0
 )
@@ -26,7 +29,6 @@ require (
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/hashicorp/yamux v0.1.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/libdns/alidns v1.0.4-libdns.v1.beta1 // indirect
 	github.com/libdns/cloudflare v0.2.2-0.20250430151523-b46a2b0885f6 // indirect
@@ -53,7 +55,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
-	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/crypto v0.39.0 // indirect
 	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6 // indirect
 	golang.org/x/sync v0.15.0 // indirect

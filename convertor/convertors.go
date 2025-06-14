@@ -6,6 +6,7 @@ import (
 )
 
 var Convertors = map[string]adapter.Convertor{
-	C.ConvertorTypeRuleSetSource: (*RuleSetSource)(nil),
-	C.ConvertorTypeRuleSetBinary: (*RuleSetBinary)(nil),
+	C.ConvertorTypeRuleSetSource:     (*RuleSetSource)(nil),
+	C.ConvertorTypeRuleSetBinary:     (*RuleSetBinary)(nil),
+	C.ConvertorTypeClashRuleProvider: (*ClashRuleProvider)(nil),
 }

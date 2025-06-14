@@ -1,6 +1,10 @@
 package option
 
 import (
+	"context"
+	"reflect"
+	_ "unsafe"
+
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
@@ -21,11 +25,11 @@ func (e FileEndpoint) MarshalJSON() ([]byte, error) {
 }
 
 func (e *FileEndpoint) UnmarshalJSON(bytes []byte) error {
-	err := json.Unmarshal(bytes, &e.ConvertOptions)
+	err := json.Unmarshal(bytes, &e.SourceOptions)
 	if err != nil {
 		return err
 	}
-	return badjson.UnmarshallExcluded(bytes, &e.ConvertOptions, &e.SourceOptions)
+	return UnmarshallExcludedContext(context.Background(), bytes, &e.SourceOptions, &e.ConvertOptions)
 }
 
 type _SourceOptions struct {
@@ -67,7 +71,7 @@ func (o *SourceOptions) UnmarshalJSON(bytes []byte) error {
 	default:
 		return E.New("unknown endpoint source: " + o.Source)
 	}
-	return badjson.UnmarshallExcluded(bytes, (*_SourceOptions)(o), v)
+	return json.Unmarshal(bytes, v)
 }
 
 type LocalSource struct {
@@ -83,42 +87,79 @@ type RemoteSource struct {
 }
 
 type _ConvertOptions struct {
-	SourceType string `json:"source_type,omitempty"`
-	TargetType string `json:"target_type,omitempty"`
-	// MetaOptions MetaRuleSetTargetOptions `json:"-"`
+	SourceType   string               `json:"source_type,omitempty"`
+	TargetType   string               `json:"target_type,omitempty"`
+	ClashOptions ClashProviderOptions `json:"-"`
 }
 
 type ConvertOptions _ConvertOptions
 
-//
-//func (o ConvertOptions) MarshalJSON() ([]byte, error) {
-//	var v any
-//	switch o.SourceType {
-//	case C.ConvertorTypeMetaRuleSetSource, C.ConvertorTypeMetaRuleSetBinary:
-//		v = o.MetaOptions
-//	case "":
-//		return nil, E.New("missing convertor source type")
-//	default:
-//		return nil, E.New("unknown convertor source type: " + o.SourceType)
-//	}
-//	return badjson.MarshallObjects((_ConvertOptions)(o), v)
-//}
-//
-//func (o *ConvertOptions) UnmarshalJSON(bytes []byte) error {
-//	err := json.Unmarshal(bytes, (*_ConvertOptions)(o))
-//	if err != nil {
-//		return err
-//	}
-//	var v any
-//	switch o.SourceType {
-//	case C.ConvertorTypeMetaRuleSetSource, C.ConvertorTypeMetaRuleSetBinary:
-//		v = &o.MetaOptions
-//	default:
-//		return E.New("unknown convertor source type: " + o.SourceType)
-//	}
-//	return badjson.UnmarshallExcluded(bytes, (*_ConvertOptions)(o), v)
-//}
-//
-//type MetaRuleSetTargetOptions struct {
-//	Behavior string `json:"behavior,omitempty"`
-//}
+func (o ConvertOptions) MarshalJSON() ([]byte, error) {
+	var v any
+	switch o.SourceType {
+	case C.ConvertorTypeClashRuleProvider:
+		v = o.ClashOptions
+	case "":
+		return nil, E.New("missing convertor source type")
+	default:
+		return nil, E.New("unknown convertor source type: " + o.SourceType)
+	}
+	return badjson.MarshallObjects((_ConvertOptions)(o), v)
+}
+
+func (o *ConvertOptions) UnmarshalJSON(bytes []byte) error {
+	err := json.Unmarshal(bytes, (*_ConvertOptions)(o))
+	if err != nil {
+		return err
+	}
+	var v any
+	switch o.SourceType {
+	case C.ConvertorTypeClashRuleProvider:
+		v = &o.ClashOptions
+	default:
+		return E.New("unknown convertor source type: " + o.SourceType)
+	}
+	return badjson.UnmarshallExcludedContext(context.Background(), bytes, (*_ConvertOptions)(o), v)
+}
+
+func UnmarshallExcludedContext(ctx context.Context, inputContent []byte, parentObject any, object any) error {
+	var content badjson.JSONObject
+	err := content.UnmarshalJSONContext(ctx, inputContent)
+	if err != nil {
+		return err
+	}
+	parentBinary, err := json.MarshalContext(ctx, parentObject)
+	if err != nil {
+		return err
+	}
+	var parentMap map[string]any
+	err = json.UnmarshalContext(ctx, parentBinary, &parentMap)
+	if err != nil {
+		return err
+	}
+	//keys := ObjectKeys(reflect.TypeOf(parentObject))
+	//for _, key := range keys {
+	//	content.Remove(key)
+	//}
+	for key := range parentMap {
+		content.Remove(key)
+	}
+	if object == nil {
+		if content.IsEmpty() {
+			return nil
+		}
+		return E.New("unexpected key: ", content.Keys()[0])
+	}
+	inputContent, err = content.MarshalJSONContext(ctx)
+	if err != nil {
+		return err
+	}
+	return json.UnmarshalContextDisallowUnknownFields(ctx, inputContent, object)
+}
+
+//go:linkname ObjectKeys github.com/sagernet/sing/common/json/internal/contextjson.ObjectKeys
+func ObjectKeys(object reflect.Type) []string
+
+type ClashProviderOptions struct {
+	TargetFormat string `json:"target_format,omitempty"`
+}

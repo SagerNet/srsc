@@ -68,6 +68,10 @@ func (f *FileEndpoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *FileEndpoint) serveHTTP0(w http.ResponseWriter, r *http.Request) error {
+	convertOptions := adapter.ConvertOptions{
+		Options:  f.convertOptions,
+		Metadata: C.DetectMetadata(r.UserAgent()),
+	}
 	var urlParams map[string]string // TODO: improve performance
 	rawURLParams := chi.RouteContext(r.Context()).URLParams
 	if len(rawURLParams.Keys) > 0 {
@@ -89,7 +93,7 @@ func (f *FileEndpoint) serveHTTP0(w http.ResponseWriter, r *http.Request) error 
 	}
 	lastUpdated := f.source.LastUpdated(cachePath)
 	if cachedBinary != nil && !lastUpdated.IsZero() && cachedBinary.LastUpdated.Equal(lastUpdated) {
-		return f.writeCache(w, cachedBinary)
+		return f.writeCache(w, cachedBinary, convertOptions)
 	}
 
 	var fetchBody adapter.FetchRequestBody
@@ -115,29 +119,26 @@ func (f *FileEndpoint) serveHTTP0(w http.ResponseWriter, r *http.Request) error 
 				return E.Cause(err, "save cache binary")
 			}
 		}
-		return f.writeCache(w, cachedBinary)
+		return f.writeCache(w, cachedBinary, convertOptions)
 	}
 	if len(response.Content) == 0 {
 		w.WriteHeader(http.StatusBadGateway)
 		return E.Cause(err, "fetch source: empty content")
 	}
-	binary := response.Content
-	if f.sourceConvertor.Type() != f.targetConvertor.Type() {
-		var options *boxOption.PlainRuleSetCompat
-		options, err = f.sourceConvertor.From(f.ctx, response.Content)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return E.Cause(err, "decode source")
-		}
-		binary, err = f.targetConvertor.To(f.ctx, options, adapter.ConvertOptions{
-			Options:  f.convertOptions,
-			Metadata: C.DetectMetadata(r.UserAgent()),
-		})
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return E.Cause(err, "encode target")
-		}
+	// binary := response.Content
+	// if f.sourceConvertor.Type() != f.targetConvertor.Type() {
+	var options *boxOption.PlainRuleSetCompat
+	options, err = f.sourceConvertor.From(f.ctx, response.Content, convertOptions)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return E.Cause(err, "decode source")
 	}
+	binary, err := f.targetConvertor.To(f.ctx, options, convertOptions)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return E.Cause(err, "encode target")
+	}
+	//}
 	cache := &adapter.SavedBinary{
 		Content:     binary,
 		LastUpdated: response.LastUpdated,
@@ -148,11 +149,11 @@ func (f *FileEndpoint) serveHTTP0(w http.ResponseWriter, r *http.Request) error 
 		w.WriteHeader(http.StatusInternalServerError)
 		return E.Cause(err, "save cache binary")
 	}
-	return f.writeCache(w, cache)
+	return f.writeCache(w, cache, convertOptions)
 }
 
-func (f *FileEndpoint) writeCache(w http.ResponseWriter, cachedBinary *adapter.SavedBinary) error {
-	w.Header().Set("Content-Type", f.targetConvertor.ContentType()+"; charset=utf-8")
+func (f *FileEndpoint) writeCache(w http.ResponseWriter, cachedBinary *adapter.SavedBinary, convertOptions adapter.ConvertOptions) error {
+	w.Header().Set("Content-Type", f.targetConvertor.ContentType(convertOptions)+"; charset=utf-8")
 	w.Header().Set("Content-Length", F.ToString(len(cachedBinary.Content)))
 	if cachedBinary.LastEtag != "" {
 		w.Header().Set("ETag", cachedBinary.LastEtag)

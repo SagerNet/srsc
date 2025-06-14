@@ -5,17 +5,24 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"text/template"
 	"time"
 
+	boxAdapter "github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/tls"
+	"github.com/sagernet/sing-box/dns"
+	"github.com/sagernet/sing-box/dns/transport/local"
+	boxOption "github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 	aTLS "github.com/sagernet/sing/common/tls"
 	"github.com/sagernet/srsc/adapter"
 	C "github.com/sagernet/srsc/constant"
@@ -54,11 +61,26 @@ func NewRemote(ctx context.Context, options option.SourceOptions) (*Remote, erro
 			return nil, E.Cause(err, "create TLS config")
 		}
 	}
+	dnsTransport := common.Must1(local.NewTransport(ctx, logger.NOP(), "", boxOption.LocalDNSServerOptions{}))
+	dnsClient := dns.NewClient(dns.ClientOptions{
+		Logger: logger.NOP(),
+	})
 	var httpTransport *http.Transport
 	if tlsConfig != nil {
 		httpTransport = &http.Transport{
 			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				conn, err := remoteDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+				destination := M.ParseSocksaddr(addr)
+				var conn net.Conn
+				if destination.IsFqdn() {
+					var addresses []netip.Addr
+					addresses, err = dnsClient.Lookup(ctx, dnsTransport, destination.Fqdn, boxAdapter.DNSQueryOptions{}, nil)
+					if err != nil {
+						return nil, err
+					}
+					conn, err = N.DialParallel(ctx, remoteDialer, network, destination, addresses, false, 0)
+				} else {
+					conn, err = remoteDialer.DialContext(ctx, network, destination)
+				}
 				if err != nil {
 					return nil, err
 				}
@@ -74,7 +96,22 @@ func NewRemote(ctx context.Context, options option.SourceOptions) (*Remote, erro
 	} else {
 		httpTransport = &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return remoteDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+				destination := M.ParseSocksaddr(addr)
+				var conn net.Conn
+				if destination.IsFqdn() {
+					var addresses []netip.Addr
+					addresses, err = dnsClient.Lookup(ctx, dnsTransport, destination.Fqdn, boxAdapter.DNSQueryOptions{}, nil)
+					if err != nil {
+						return nil, err
+					}
+					conn, err = N.DialParallel(ctx, remoteDialer, network, destination, addresses, false, 0)
+				} else {
+					conn, err = remoteDialer.DialContext(ctx, network, destination)
+				}
+				if err != nil {
+					return nil, err
+				}
+				return conn, nil
 			},
 			ForceAttemptHTTP2: true,
 		}

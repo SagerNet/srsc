@@ -23,11 +23,11 @@ func (s *RuleSetSource) Type() string {
 	return C.ConvertorTypeRuleSetSource
 }
 
-func (s *RuleSetSource) ContentType() string {
+func (s *RuleSetSource) ContentType(_ adapter.ConvertOptions) string {
 	return "application/json"
 }
 
-func (s *RuleSetSource) From(ctx context.Context, binary []byte) (*boxOption.PlainRuleSetCompat, error) {
+func (s *RuleSetSource) From(ctx context.Context, binary []byte, _ adapter.ConvertOptions) (*boxOption.PlainRuleSetCompat, error) {
 	if !strings.HasPrefix(string(binary), "{") {
 		return nil, E.New("source is not a JSON object")
 	}

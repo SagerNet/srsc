@@ -10,8 +10,8 @@ import (
 
 type Convertor interface {
 	Type() string
-	ContentType() string
-	From(ctx context.Context, binary []byte) (*boxOption.PlainRuleSetCompat, error)
+	ContentType(options ConvertOptions) string
+	From(ctx context.Context, binary []byte, options ConvertOptions) (*boxOption.PlainRuleSetCompat, error)
 	To(ctx context.Context, source *boxOption.PlainRuleSetCompat, options ConvertOptions) ([]byte, error)
 }
 
