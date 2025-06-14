@@ -1,0 +1,11 @@
+package convertor
+
+import (
+	"github.com/sagernet/srsc/adapter"
+	C "github.com/sagernet/srsc/constant"
+)
+
+var Convertors = map[string]adapter.Convertor{
+	C.ConvertorTypeRuleSetSource: (*RuleSetSource)(nil),
+	C.ConvertorTypeRuleSetBinary: (*RuleSetBinary)(nil),
+}
