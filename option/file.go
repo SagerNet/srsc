@@ -97,12 +97,17 @@ type ConvertOptions _ConvertOptions
 func (o ConvertOptions) MarshalJSON() ([]byte, error) {
 	var v any
 	switch o.SourceType {
+	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary, C.ConvertorTypeAdGuardRuleSet:
+		v = nil
 	case C.ConvertorTypeClashRuleProvider:
 		v = o.ClashOptions
 	case "":
 		return nil, E.New("missing convertor source type")
 	default:
 		return nil, E.New("unknown convertor source type: " + o.SourceType)
+	}
+	if v == nil {
+		return badjson.MarshallObjects((_ConvertOptions)(o))
 	}
 	return badjson.MarshallObjects((_ConvertOptions)(o), v)
 }
@@ -114,12 +119,17 @@ func (o *ConvertOptions) UnmarshalJSON(bytes []byte) error {
 	}
 	var v any
 	switch o.SourceType {
+	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary, C.ConvertorTypeAdGuardRuleSet:
+		v = nil
 	case C.ConvertorTypeClashRuleProvider:
 		v = &o.ClashOptions
 	default:
 		return E.New("unknown convertor source type: " + o.SourceType)
 	}
-	return badjson.UnmarshallExcludedContext(context.Background(), bytes, (*_ConvertOptions)(o), v)
+	if v == nil {
+		return json.UnmarshalDisallowUnknownFields(bytes, &_ConvertOptions{})
+	}
+	return badjson.UnmarshallExcluded(bytes, (*_ConvertOptions)(o), v)
 }
 
 func UnmarshallExcludedContext(ctx context.Context, inputContent []byte, parentObject any, object any) error {
