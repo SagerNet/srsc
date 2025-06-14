@@ -5,13 +5,11 @@ go 1.23.1
 require (
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/redis/go-redis/v9 v9.10.0
-	github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a
 	github.com/sagernet/sing v0.6.10
 	github.com/sagernet/sing-box v1.11.13
 	github.com/spf13/cobra v1.8.1
 	golang.org/x/mod v0.20.0
 	golang.org/x/net v0.34.0
-
 )
 
 require (
@@ -19,7 +17,7 @@ require (
 	github.com/andybalholm/brotli v1.0.6 // indirect
 	github.com/caddyserver/certmagic v0.20.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cloudflare/circl v1.3.7 // indirect
+	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/cretz/bine v0.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
@@ -52,6 +50,7 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
 	github.com/quic-go/qtls-go1-20 v0.4.1 // indirect
+	github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a // indirect
 	github.com/sagernet/cloudflare-tls v0.0.0-20231208171750-a4483c1b7cd1 // indirect
 	github.com/sagernet/cors v1.2.1 // indirect
 	github.com/sagernet/fswatch v0.1.1 // indirect
