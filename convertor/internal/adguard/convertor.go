@@ -36,9 +36,45 @@ func Convert(reader io.Reader, logger logger.Logger) ([]option.HeadlessRule, err
 parseLine:
 	for scanner.Scan() {
 		ruleLine := scanner.Text()
-		if ruleLine == "" || ruleLine[0] == '!' || ruleLine[0] == '#' {
+
+		// Empty line
+		if ruleLine == "" {
 			continue
 		}
+		// Comment (both line comment and in-line comment)
+		if strings.Contains(ruleLine, "!") {
+			continue
+		}
+		// Either comment or cosmetic filter
+		if strings.Contains(ruleLine, "#") {
+			ignoredLines++
+			logger.Debug("ignored unsupported cosmetic filter: ", ruleLine)
+			continue
+		}
+		// We don't support URL query anyway
+		if strings.Contains(ruleLine, "?") || strings.Contains(ruleLine, "&") {
+			ignoredLines++
+			logger.Debug("ignored unsupported rule with query: ", ruleLine)
+			continue
+		}
+		// Commonly seen in CSS selectors of cosmetic filters
+		if strings.Contains(ruleLine, "[") || strings.Contains(ruleLine, "]") {
+			ignoredLines++
+			logger.Debug("ignored unsupported cosmetic filter: ", ruleLine)
+			continue
+		}
+		if strings.Contains(ruleLine, "(") || strings.Contains(ruleLine, ")") {
+			ignoredLines++
+			logger.Debug("ignored unsupported cosmetic filter: ", ruleLine)
+			continue
+		}
+		// We don't support $domain modifier
+		if strings.Contains(ruleLine, "~") {
+			ignoredLines++
+			logger.Debug("ignored unsupported rule modifier: ", ruleLine)
+			continue
+		}
+
 		originRuleLine := ruleLine
 		if M.IsDomainName(ruleLine) {
 			ruleLines = append(ruleLines, agdguardRuleLine{
@@ -131,16 +167,6 @@ parseLine:
 			if strings.Contains(ruleLine, "/") {
 				ignoredLines++
 				logger.Debug("ignored unsupported rule with path: ", ruleLine)
-				continue
-			}
-			if strings.Contains(ruleLine, "##") {
-				ignoredLines++
-				logger.Debug("ignored unsupported rule with element hiding: ", ruleLine)
-				continue
-			}
-			if strings.Contains(ruleLine, "#$#") {
-				ignoredLines++
-				logger.Debug("ignored unsupported rule with element hiding: ", ruleLine)
 				continue
 			}
 			var domainCheck string
