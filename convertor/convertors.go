@@ -6,8 +6,10 @@ import (
 )
 
 var Convertors = map[string]adapter.Convertor{
-	C.ConvertorTypeRuleSetSource:     (*RuleSetSource)(nil),
-	C.ConvertorTypeRuleSetBinary:     (*RuleSetBinary)(nil),
-	C.ConvertorTypeAdGuardRuleSet:    (*AdGuardRuleSet)(nil),
-	C.ConvertorTypeClashRuleProvider: (*ClashRuleProvider)(nil),
+	C.ConvertorTypeRuleSetSource:         (*RuleSetSource)(nil),
+	C.ConvertorTypeRuleSetBinary:         (*RuleSetBinary)(nil),
+	C.ConvertorTypeAdGuardRuleSet:        (*AdGuardRuleSet)(nil),
+	C.ConvertorTypeClashTextRuleProvider: (*ClashTextRuleProvider)(nil),
+	C.ConvertorTypeClashYamlRuleProvider: (*ClashYamlRuleProvider)(nil),
+	C.ConvertorTypeMetaRuleSetBinary:     (*MetaRuleSetBinary)(nil),
 }

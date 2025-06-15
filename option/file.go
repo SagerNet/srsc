@@ -85,9 +85,8 @@ type RemoteSource struct {
 }
 
 type _ConvertOptions struct {
-	SourceType   string               `json:"source_type,omitempty"`
-	TargetType   string               `json:"target_type,omitempty"`
-	ClashOptions ClashProviderOptions `json:"-"`
+	SourceType string `json:"source_type,omitempty"`
+	TargetType string `json:"target_type,omitempty"`
 }
 
 type ConvertOptions _ConvertOptions
@@ -95,10 +94,13 @@ type ConvertOptions _ConvertOptions
 func (o ConvertOptions) MarshalJSON() ([]byte, error) {
 	var v any
 	switch o.SourceType {
-	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary, C.ConvertorTypeAdGuardRuleSet:
+	case C.ConvertorTypeRuleSetSource,
+		C.ConvertorTypeRuleSetBinary,
+		C.ConvertorTypeAdGuardRuleSet,
+		C.ConvertorTypeClashTextRuleProvider,
+		C.ConvertorTypeClashYamlRuleProvider,
+		C.ConvertorTypeMetaRuleSetBinary:
 		v = nil
-	case C.ConvertorTypeClashRuleProvider:
-		v = o.ClashOptions
 	case "":
 		return nil, E.New("missing convertor source type")
 	default:
@@ -117,10 +119,13 @@ func (o *ConvertOptions) UnmarshalJSON(bytes []byte) error {
 	}
 	var v any
 	switch o.SourceType {
-	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary, C.ConvertorTypeAdGuardRuleSet:
+	case C.ConvertorTypeRuleSetSource,
+		C.ConvertorTypeRuleSetBinary,
+		C.ConvertorTypeAdGuardRuleSet,
+		C.ConvertorTypeClashTextRuleProvider,
+		C.ConvertorTypeClashYamlRuleProvider,
+		C.ConvertorTypeMetaRuleSetBinary:
 		v = nil
-	case C.ConvertorTypeClashRuleProvider:
-		v = &o.ClashOptions
 	default:
 		return E.New("unknown convertor source type: " + o.SourceType)
 	}
@@ -128,8 +133,4 @@ func (o *ConvertOptions) UnmarshalJSON(bytes []byte) error {
 		return json.UnmarshalDisallowUnknownFields(bytes, &_ConvertOptions{})
 	}
 	return badjson.UnmarshallExcluded(bytes, (*_ConvertOptions)(o), v)
-}
-
-type ClashProviderOptions struct {
-	TargetFormat string `json:"target_format,omitempty"`
 }
