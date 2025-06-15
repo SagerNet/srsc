@@ -1,8 +1,6 @@
 package option
 
 import (
-	"context"
-	"reflect"
 	_ "unsafe"
 
 	"github.com/sagernet/sing-box/option"
@@ -29,7 +27,7 @@ func (e *FileEndpoint) UnmarshalJSON(bytes []byte) error {
 	if err != nil {
 		return err
 	}
-	return UnmarshallExcludedContext(context.Background(), bytes, &e.SourceOptions, &e.ConvertOptions)
+	return badjson.UnmarshallExcludedMulti(bytes, &e.SourceOptions, &e.ConvertOptions)
 }
 
 type _SourceOptions struct {
@@ -131,44 +129,6 @@ func (o *ConvertOptions) UnmarshalJSON(bytes []byte) error {
 	}
 	return badjson.UnmarshallExcluded(bytes, (*_ConvertOptions)(o), v)
 }
-
-func UnmarshallExcludedContext(ctx context.Context, inputContent []byte, parentObject any, object any) error {
-	var content badjson.JSONObject
-	err := content.UnmarshalJSONContext(ctx, inputContent)
-	if err != nil {
-		return err
-	}
-	parentBinary, err := json.MarshalContext(ctx, parentObject)
-	if err != nil {
-		return err
-	}
-	var parentMap map[string]any
-	err = json.UnmarshalContext(ctx, parentBinary, &parentMap)
-	if err != nil {
-		return err
-	}
-	//keys := ObjectKeys(reflect.TypeOf(parentObject))
-	//for _, key := range keys {
-	//	content.Remove(key)
-	//}
-	for key := range parentMap {
-		content.Remove(key)
-	}
-	if object == nil {
-		if content.IsEmpty() {
-			return nil
-		}
-		return E.New("unexpected key: ", content.Keys()[0])
-	}
-	inputContent, err = content.MarshalJSONContext(ctx)
-	if err != nil {
-		return err
-	}
-	return json.UnmarshalContextDisallowUnknownFields(ctx, inputContent, object)
-}
-
-//go:linkname ObjectKeys github.com/sagernet/sing/common/json/internal/contextjson.ObjectKeys
-func ObjectKeys(object reflect.Type) []string
 
 type ClashProviderOptions struct {
 	TargetFormat string `json:"target_format,omitempty"`

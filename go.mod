@@ -7,8 +7,8 @@ require (
 	github.com/klauspost/compress v1.17.11
 	github.com/openacid/low v0.1.21
 	github.com/redis/go-redis/v9 v9.10.0
-	github.com/sagernet/sing v0.6.11-0.20250521033217-30d675ea099b
-	github.com/sagernet/sing-box v1.12.0-beta.24
+	github.com/sagernet/sing v0.6.12-0.20250615090127-716ee8a0d394
+	github.com/sagernet/sing-box v1.12.0-beta.25
 	github.com/spf13/cobra v1.9.1
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/mod v0.25.0
@@ -46,11 +46,12 @@ require (
 	github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a // indirect
 	github.com/sagernet/nftables v0.3.0-beta.4 // indirect
 	github.com/sagernet/sing-mux v0.3.2 // indirect
-	github.com/sagernet/sing-tun v0.6.6-0.20250610083027-da0a50057fb5 // indirect
+	github.com/sagernet/sing-tun v0.6.8-0.20250615093440-d1f6001b58c2 // indirect
 	github.com/sagernet/sing-vmess v0.2.4-0.20250605032146-38cc72672c88 // indirect
 	github.com/sagernet/smux v1.5.34-mod.2 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
+	github.com/zeebo/assert v1.3.0 // indirect
 	github.com/zeebo/blake3 v0.2.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect

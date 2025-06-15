@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 
+	"github.com/sagernet/sing-box/common/convertor/adguard"
 	boxConstant "github.com/sagernet/sing-box/constant"
 	boxOption "github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/srsc/adapter"
 	C "github.com/sagernet/srsc/constant"
-	"github.com/sagernet/srsc/convertor/internal/adguard"
 )
 
 var _ adapter.Convertor = (*AdGuardRuleSet)(nil)

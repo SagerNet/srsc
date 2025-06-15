@@ -2,7 +2,7 @@
 --name srsc
 --category net
 --license GPL-3.0-or-later
---description "The universal proxy platform."
+--description "The rule-set convertor for sing-box."
 --url "https://srsc.sagernet.org/"
 --maintainer "nekohasekai <contact-git@sekai.icu>"
 --deb-field "Bug: https://github.com/SagerNet/srsc/issues"
