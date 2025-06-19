@@ -1,21 +1,18 @@
-package convertor
+package clash
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"io"
 	"net/netip"
 	"sort"
 	"strings"
 
-	boxConstant "github.com/sagernet/sing-box/constant"
-	boxOption "github.com/sagernet/sing-box/option"
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/rw"
-	"github.com/sagernet/srsc/adapter"
-	C "github.com/sagernet/srsc/constant"
 	"github.com/sagernet/srsc/convertor/internal/meta_cidr"
 	"github.com/sagernet/srsc/convertor/internal/meta_domainset"
 
@@ -25,19 +22,7 @@ import (
 
 var MrsMagicBytes = [4]byte{'M', 'R', 'S', 1} // MRSv1
 
-var _ adapter.Convertor = (*MetaRuleSetBinary)(nil)
-
-type MetaRuleSetBinary struct{}
-
-func (c *MetaRuleSetBinary) Type() string {
-	return C.ConvertorTypeMetaRuleSetBinary
-}
-
-func (c *MetaRuleSetBinary) ContentType(options adapter.ConvertOptions) string {
-	return "application/octet-stream"
-}
-
-func (c *MetaRuleSetBinary) From(ctx context.Context, content []byte, options adapter.ConvertOptions) (*boxOption.PlainRuleSetCompat, error) {
+func fromMrs(content []byte) (*option.PlainRuleSetCompat, error) {
 	decoder, err := zstd.NewReader(bytes.NewReader(content))
 	if err != nil {
 		return nil, err
@@ -82,7 +67,7 @@ func (c *MetaRuleSetBinary) From(ctx context.Context, content []byte, options ad
 			return true
 		})
 		sort.Strings(keys)
-		var rule boxOption.DefaultHeadlessRule
+		var rule option.DefaultHeadlessRule
 		for _, key := range keys {
 			if _, ok := slices.BinarySearch(keys, "+."+key); ok {
 				continue
@@ -96,11 +81,11 @@ func (c *MetaRuleSetBinary) From(ctx context.Context, content []byte, options ad
 				rule.Domain = append(rule.Domain, key)
 			}
 		}
-		return &boxOption.PlainRuleSetCompat{
-			Version: boxConstant.RuleSetVersionCurrent,
-			Options: boxOption.PlainRuleSet{
-				Rules: []boxOption.HeadlessRule{{
-					Type:           boxConstant.RuleTypeDefault,
+		return &option.PlainRuleSetCompat{
+			Version: C.RuleSetVersionCurrent,
+			Options: option.PlainRuleSet{
+				Rules: []option.HeadlessRule{{
+					Type:           C.RuleTypeDefault,
 					DefaultOptions: rule,
 				}},
 			},
@@ -111,12 +96,12 @@ func (c *MetaRuleSetBinary) From(ctx context.Context, content []byte, options ad
 		if err != nil {
 			return nil, err
 		}
-		return &boxOption.PlainRuleSetCompat{
-			Version: boxConstant.RuleSetVersionCurrent,
-			Options: boxOption.PlainRuleSet{
-				Rules: []boxOption.HeadlessRule{{
-					Type: boxConstant.RuleTypeDefault,
-					DefaultOptions: boxOption.DefaultHeadlessRule{
+		return &option.PlainRuleSetCompat{
+			Version: C.RuleSetVersionCurrent,
+			Options: option.PlainRuleSet{
+				Rules: []option.HeadlessRule{{
+					Type: C.RuleTypeDefault,
+					DefaultOptions: option.DefaultHeadlessRule{
 						IPCIDR: common.Map(ipCidrSet.ToIPSet().Prefixes(), netip.Prefix.String),
 					},
 				}},
@@ -127,7 +112,7 @@ func (c *MetaRuleSetBinary) From(ctx context.Context, content []byte, options ad
 	}
 }
 
-func (c *MetaRuleSetBinary) To(ctx context.Context, source *boxOption.PlainRuleSetCompat, options adapter.ConvertOptions) ([]byte, error) {
+func toMrs(source *option.PlainRuleSetCompat) ([]byte, error) {
 	var output bytes.Buffer
 	encoder, err := zstd.NewWriter(&output, zstd.WithEncoderLevel(zstd.SpeedBestCompression))
 	if err != nil {

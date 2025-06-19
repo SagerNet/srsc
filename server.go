@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/sagernet/sing-box/common/listener"
@@ -91,6 +92,9 @@ func NewServer(options Options) (*Server, error) {
 		return nil, E.New("missing endpoints")
 	}
 	for index, entry := range options.Endpoints.Entries() {
+		if !strings.HasPrefix(entry.Key, "/") {
+			return nil, E.New("routing pattern must begin with '/': [", index, "]: ", entry.Key)
+		}
 		switch entry.Value.Type {
 		case C.EndpointTypeFile:
 			handler, err := endpoint.NewFileEndpoint(ctx, options.Logger, index, entry.Value.FileOptions)

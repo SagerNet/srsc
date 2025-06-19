@@ -84,53 +84,119 @@ type RemoteSource struct {
 	option.DialerOptions
 }
 
-type _ConvertOptions struct {
-	SourceType string `json:"source_type,omitempty"`
-	TargetType string `json:"target_type,omitempty"`
+type ConvertOptions struct {
+	SourceConvertOptions
+	TargetConvertOptions
 }
 
-type ConvertOptions _ConvertOptions
-
 func (o ConvertOptions) MarshalJSON() ([]byte, error) {
-	var v any
-	switch o.SourceType {
-	case C.ConvertorTypeRuleSetSource,
-		C.ConvertorTypeRuleSetBinary,
-		C.ConvertorTypeAdGuardRuleSet,
-		C.ConvertorTypeClashTextRuleProvider,
-		C.ConvertorTypeClashYamlRuleProvider,
-		C.ConvertorTypeMetaRuleSetBinary:
-		v = nil
-	case "":
-		return nil, E.New("missing convertor source type")
-	default:
-		return nil, E.New("unknown convertor source type: " + o.SourceType)
-	}
-	if v == nil {
-		return badjson.MarshallObjects((_ConvertOptions)(o))
-	}
-	return badjson.MarshallObjects((_ConvertOptions)(o), v)
+	return badjson.MarshallObjects(o.SourceConvertOptions, o.TargetConvertOptions)
 }
 
 func (o *ConvertOptions) UnmarshalJSON(bytes []byte) error {
-	err := json.Unmarshal(bytes, (*_ConvertOptions)(o))
+	err := json.Unmarshal(bytes, &o.SourceConvertOptions)
+	if err != nil {
+		return err
+	}
+	return badjson.UnmarshallExcludedMulti(bytes, &o.SourceConvertOptions, &o.TargetConvertOptions)
+}
+
+type _SourceConvertOptions struct {
+	SourceType   string                         `json:"source_type,omitempty"`
+	ClashOptions ClashRuleProviderSourceOptions `json:"-"`
+}
+
+type SourceConvertOptions _SourceConvertOptions
+
+func (o SourceConvertOptions) MarshalJSON() ([]byte, error) {
+	var v any
+	switch o.SourceType {
+	case C.ConvertorTypeClashRuleProvider:
+		v = o.ClashOptions
+	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary, C.ConvertorTypeAdGuardRuleSet:
+	case "":
+		return nil, E.New("missing source type")
+	default:
+		return nil, E.New("unknown source type: " + o.SourceType)
+	}
+	if v == nil {
+		return json.Marshal((_SourceConvertOptions)(o))
+	}
+	return badjson.MarshallObjects((_SourceConvertOptions)(o), v)
+}
+
+func (o *SourceConvertOptions) UnmarshalJSON(bytes []byte) error {
+	err := json.Unmarshal(bytes, (*_SourceConvertOptions)(o))
 	if err != nil {
 		return err
 	}
 	var v any
 	switch o.SourceType {
-	case C.ConvertorTypeRuleSetSource,
-		C.ConvertorTypeRuleSetBinary,
-		C.ConvertorTypeAdGuardRuleSet,
-		C.ConvertorTypeClashTextRuleProvider,
-		C.ConvertorTypeClashYamlRuleProvider,
-		C.ConvertorTypeMetaRuleSetBinary:
-		v = nil
+	case C.ConvertorTypeClashRuleProvider:
+		v = &o.ClashOptions
+	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary, C.ConvertorTypeAdGuardRuleSet:
+	case "":
+		return E.New("missing source type")
 	default:
-		return E.New("unknown convertor source type: " + o.SourceType)
+		return E.New("unknown source type: " + o.SourceType)
 	}
 	if v == nil {
-		return json.UnmarshalDisallowUnknownFields(bytes, &_ConvertOptions{})
+		return nil
 	}
-	return badjson.UnmarshallExcluded(bytes, (*_ConvertOptions)(o), v)
+	return json.Unmarshal(bytes, v)
+}
+
+type _TargetConvertOptions struct {
+	TargetType   string                         `json:"target_type,omitempty"`
+	ClashOptions ClashRuleProviderTargetOptions `json:"-"`
+}
+
+type TargetConvertOptions _TargetConvertOptions
+
+func (o TargetConvertOptions) MarshalJSON() ([]byte, error) {
+	var v any
+	switch o.TargetType {
+	case C.ConvertorTypeClashRuleProvider:
+		v = o.ClashOptions
+	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary, C.ConvertorTypeAdGuardRuleSet:
+	case "":
+		return nil, E.New("missing target type")
+	default:
+		return nil, E.New("unknown target type: " + o.TargetType)
+	}
+	if v == nil {
+		return json.Marshal((_TargetConvertOptions)(o))
+	}
+	return badjson.MarshallObjects((_TargetConvertOptions)(o), v)
+}
+
+func (o *TargetConvertOptions) UnmarshalJSON(bytes []byte) error {
+	err := json.Unmarshal(bytes, (*_TargetConvertOptions)(o))
+	if err != nil {
+		return err
+	}
+	var v any
+	switch o.TargetType {
+	case C.ConvertorTypeClashRuleProvider:
+		v = &o.ClashOptions
+	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary, C.ConvertorTypeAdGuardRuleSet:
+	case "":
+		return E.New("missing target type")
+	default:
+		return E.New("unknown target type: " + o.TargetType)
+	}
+	if v == nil {
+		return nil
+	}
+	return badjson.UnmarshallExcluded(bytes, (*_TargetConvertOptions)(o), v)
+}
+
+type ClashRuleProviderSourceOptions struct {
+	SourceFormat   string `json:"source_format,omitempty"`
+	SourceBehavior string `json:"source_behavior,omitempty"`
+}
+
+type ClashRuleProviderTargetOptions struct {
+	TargetFormat   string `json:"target_format,omitempty"`
+	TargetBehavior string `json:"target_behavior,omitempty"`
 }

@@ -3,18 +3,19 @@ module github.com/sagernet/srsc
 go 1.23.1
 
 require (
+	github.com/bahlo/generic-list-go v0.2.0
 	github.com/go-chi/chi/v5 v5.2.1
-	github.com/klauspost/compress v1.17.11
+	github.com/klauspost/compress v1.18.0
 	github.com/openacid/low v0.1.21
 	github.com/redis/go-redis/v9 v9.10.0
 	github.com/sagernet/sing v0.6.12-0.20250615090127-716ee8a0d394
-	github.com/sagernet/sing-box v1.12.0-beta.25.0.20250615122938-1c597d1f5f3f
+	github.com/sagernet/sing-box v1.12.0-beta.26
 	github.com/spf13/cobra v1.9.1
-	github.com/stretchr/testify v1.10.0
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6
 	golang.org/x/mod v0.25.0
 	golang.org/x/net v0.41.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -48,7 +49,7 @@ require (
 	github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a // indirect
 	github.com/sagernet/nftables v0.3.0-beta.4 // indirect
 	github.com/sagernet/sing-mux v0.3.2 // indirect
-	github.com/sagernet/sing-tun v0.6.8-0.20250615093440-d1f6001b58c2 // indirect
+	github.com/sagernet/sing-tun v0.6.9-0.20250617062442-df4458520f26 // indirect
 	github.com/sagernet/sing-vmess v0.2.4-0.20250605032146-38cc72672c88 // indirect
 	github.com/sagernet/smux v1.5.34-mod.2 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
@@ -64,5 +65,4 @@ require (
 	golang.org/x/text v0.26.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
 	golang.org/x/tools v0.33.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
