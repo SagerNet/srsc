@@ -50,7 +50,12 @@ nav:
           - configuration/endpoint/index.md
           - File: configuration/endpoint/file.md
       - Cache: configuration/cache.md
-      - Convertors: configuration/convertors.md
+      - Convertor:
+        - configuration/convertor/index.md
+        - Source: configuration/convertor/source.md
+        - Binary: configuration/convertor/binary.md
+        - AdGuard: configuration/convertor/adguard.md
+        - Clash: configuration/convertor/clash.md
 markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets

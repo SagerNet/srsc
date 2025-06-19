@@ -10,9 +10,7 @@ The File endpoint converts rule-sets from local or remote files.
   "source": "",
   
   ..., // Source Fields
-
-  "source_type": "",
-  "target_type": ""
+  ... // Convertor Fields
 }
 ```
 
@@ -48,18 +46,6 @@ The File endpoint converts rule-sets from local or remote files.
 ==Required==
 
 Source of rule-sets, `local` or `remote`.
-
-#### source_type
-
-==Required==
-
-Source convertor, see [Convertors](/configuration/convertors/) for available convertors.
-
-#### target_type
-
-==Required==
-
-Target convertor, see [Convertors](/configuration/convertors/) for available convertors.
 
 ### Local Fields
 
@@ -139,3 +125,11 @@ Custom dialer options, see [Dial Fields](https://sing-box.sagernet.org/configura
 
 Only basic options are supported, features like `detour`, DNS, multi-network dialing, etc.
 that rely on sing-box are not available.
+
+### Convertor Fields
+
+#### source_type
+
+==Required==
+
+See [Convertors](/configuration/convertor/) for more details.
