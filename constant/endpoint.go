@@ -2,7 +2,7 @@ package constant
 
 import "time"
 
-const DefaultTTL = 600 * time.Second
+const DefaultTTL = 5 * time.Minute
 
 const (
 	EndpointTypeFile     = "file"

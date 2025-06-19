@@ -15,9 +15,9 @@ type MemoryCache struct {
 	freelru.Cache[string, *adapter.SavedBinary]
 }
 
-func NewMemory(timeout time.Duration) *MemoryCache {
+func NewMemory(expiration time.Duration) *MemoryCache {
 	cache := common.Must1(freelru.NewSharded[string, *adapter.SavedBinary](1024, maphash.NewHasher[string]().Hash32))
-	cache.SetLifetime(timeout)
+	cache.SetLifetime(expiration)
 	return &MemoryCache{
 		Cache: cache,
 	}

@@ -77,11 +77,11 @@ type LocalSource struct {
 }
 
 type RemoteSource struct {
-	option.DialerOptions
-	option.OutboundTLSOptionsContainer
 	URL       string             `json:"url,omitempty"`
 	UserAgent string             `json:"user_agent,omitempty"`
 	TTL       badoption.Duration `json:"ttl,omitempty"`
+	option.OutboundTLSOptionsContainer
+	option.DialerOptions
 }
 
 type _ConvertOptions struct {

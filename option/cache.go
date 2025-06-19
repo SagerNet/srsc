@@ -14,7 +14,7 @@ import (
 type _CacheOptions struct {
 	Type         string            `json:"type,omitempty"`
 	RedisOptions RedisCacheOptions `json:"-"`
-	Timeout      time.Duration     `json:"timeout,omitempty"`
+	Expiration   time.Duration     `json:"expiration,omitempty"`
 }
 
 type CacheOptions _CacheOptions

@@ -12,9 +12,9 @@ import (
 func New(ctx context.Context, options option.CacheOptions) (adapter.Cache, error) {
 	switch options.Type {
 	case C.CacheTypeMemory, "":
-		return NewMemory(options.Timeout), nil
+		return NewMemory(options.Expiration), nil
 	case C.CacheTypeRedis:
-		return NewRedis(ctx, options.Timeout, options.RedisOptions)
+		return NewRedis(ctx, options.Expiration, options.RedisOptions)
 	default:
 		return nil, E.New("unknown cache type: ", options.Type)
 	}

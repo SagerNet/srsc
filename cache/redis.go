@@ -17,14 +17,14 @@ import (
 var _ adapter.Cache = (*RedisCache)(nil)
 
 type RedisCache struct {
-	ctx       context.Context
-	options   *redis.UniversalOptions
-	tlsConfig tls.Config
-	client    redis.UniversalClient
-	timeout   time.Duration
+	ctx        context.Context
+	options    *redis.UniversalOptions
+	tlsConfig  tls.Config
+	client     redis.UniversalClient
+	expiration time.Duration
 }
 
-func NewRedis(ctx context.Context, timeout time.Duration, options option.RedisCacheOptions) (*RedisCache, error) {
+func NewRedis(ctx context.Context, expiration time.Duration, options option.RedisCacheOptions) (*RedisCache, error) {
 	var (
 		address []string
 		server  string
@@ -64,7 +64,7 @@ func NewRedis(ctx context.Context, timeout time.Duration, options option.RedisCa
 			TLSConfig: stdConfig,
 			PoolSize:  options.PoolSize,
 		}),
-		timeout: timeout,
+		expiration: expiration,
 	}, nil
 }
 
@@ -98,7 +98,7 @@ func (r *RedisCache) SaveBinary(tag string, binary *adapter.SavedBinary) error {
 	if err != nil {
 		return err
 	}
-	err = r.client.Set(r.ctx, tag, binaryBytes, r.timeout).Err()
+	err = r.client.Set(r.ctx, tag, binaryBytes, r.expiration).Err()
 	if err != nil {
 		return err
 	}
