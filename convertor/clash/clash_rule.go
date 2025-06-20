@@ -179,7 +179,7 @@ func fromClassicalLine(ruleLine string) (*option.HeadlessRule, error) {
 			return nil, E.New("unknown network: ", payload)
 		}
 	case "AND", "OR", "NOT":
-		return parseLogicLine(ruleType, payload)
+		return parseLogicLine(ruleType, payload, fromClassicalLine)
 	}
 	return &option.HeadlessRule{
 		Type:           C.RuleTypeDefault,
@@ -203,7 +203,7 @@ func parseRule(ruleRaw string) (string, string, []string) {
 	return "", "", nil
 }
 
-func parseLogicLine(name string, payload string) (*option.HeadlessRule, error) {
+func parseLogicLine(name string, payload string, parser func(ruleLine string) (*option.HeadlessRule, error)) (*option.HeadlessRule, error) {
 	regex, err := regexp.Compile("\\(.*\\)")
 	if err != nil {
 		return nil, err
@@ -219,7 +219,7 @@ func parseLogicLine(name string, payload string) (*option.HeadlessRule, error) {
 	var rules []option.HeadlessRule
 	for _, subRange := range subRanges {
 		subPayload := payload[subRange.start+1 : subRange.end]
-		subRule, err := fromClassicalLine(subPayload)
+		subRule, err := parser(subPayload)
 		if err != nil {
 			return nil, err
 		}

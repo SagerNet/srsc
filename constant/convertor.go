@@ -5,4 +5,6 @@ const (
 	ConvertorTypeRuleSetBinary     = "binary"
 	ConvertorTypeAdGuardRuleSet    = "adguard"
 	ConvertorTypeClashRuleProvider = "clash"
+	ConvertorTypeSurgeRuleSet      = "surge"
+	ConvertorTypeSurgeDomainSet    = "surge-domain"
 )

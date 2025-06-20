@@ -9,7 +9,7 @@ require (
 	github.com/openacid/low v0.1.21
 	github.com/redis/go-redis/v9 v9.10.0
 	github.com/sagernet/sing v0.6.12-0.20250615090127-716ee8a0d394
-	github.com/sagernet/sing-box v1.12.0-beta.26
+	github.com/sagernet/sing-box v1.12.0-beta.27
 	github.com/spf13/cobra v1.9.1
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6
@@ -49,7 +49,7 @@ require (
 	github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a // indirect
 	github.com/sagernet/nftables v0.3.0-beta.4 // indirect
 	github.com/sagernet/sing-mux v0.3.2 // indirect
-	github.com/sagernet/sing-tun v0.6.9-0.20250617062442-df4458520f26 // indirect
+	github.com/sagernet/sing-tun v0.6.10-0.20250620051458-5e343c4b66b2 // indirect
 	github.com/sagernet/sing-vmess v0.2.4-0.20250605032146-38cc72672c88 // indirect
 	github.com/sagernet/smux v1.5.34-mod.2 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
