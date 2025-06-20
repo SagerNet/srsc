@@ -4,7 +4,7 @@ go 1.23.1
 
 require (
 	github.com/bahlo/generic-list-go v0.2.0
-	github.com/go-chi/chi/v5 v5.2.1
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/klauspost/compress v1.18.0
 	github.com/openacid/low v0.1.21
 	github.com/redis/go-redis/v9 v9.10.0
