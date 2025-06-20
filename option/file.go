@@ -102,8 +102,9 @@ func (o *ConvertOptions) UnmarshalJSON(bytes []byte) error {
 }
 
 type _SourceConvertOptions struct {
-	SourceType   string                         `json:"source_type,omitempty"`
-	ClashOptions ClashRuleProviderSourceOptions `json:"-"`
+	SourceType     string                         `json:"source_type,omitempty"`
+	AdGuardOptions AdGuardRuleSetSourceOptions    `json:"-"`
+	ClashOptions   ClashRuleProviderSourceOptions `json:"-"`
 }
 
 type SourceConvertOptions _SourceConvertOptions
@@ -111,9 +112,11 @@ type SourceConvertOptions _SourceConvertOptions
 func (o SourceConvertOptions) MarshalJSON() ([]byte, error) {
 	var v any
 	switch o.SourceType {
+	case C.ConvertorTypeAdGuardRuleSet:
+		v = o.AdGuardOptions
 	case C.ConvertorTypeClashRuleProvider:
 		v = o.ClashOptions
-	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary, C.ConvertorTypeAdGuardRuleSet:
+	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary:
 	case "":
 		return nil, E.New("missing source type")
 	default:
@@ -132,9 +135,11 @@ func (o *SourceConvertOptions) UnmarshalJSON(bytes []byte) error {
 	}
 	var v any
 	switch o.SourceType {
+	case C.ConvertorTypeAdGuardRuleSet:
+		v = &o.AdGuardOptions
 	case C.ConvertorTypeClashRuleProvider:
 		v = &o.ClashOptions
-	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary, C.ConvertorTypeAdGuardRuleSet:
+	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary:
 	case "":
 		return E.New("missing source type")
 	default:
@@ -189,6 +194,10 @@ func (o *TargetConvertOptions) UnmarshalJSON(bytes []byte) error {
 		return nil
 	}
 	return badjson.UnmarshallExcluded(bytes, (*_TargetConvertOptions)(o), v)
+}
+
+type AdGuardRuleSetSourceOptions struct {
+	AcceptExtendedRules bool `json:"accept_extended_rules,omitempty"`
 }
 
 type ClashRuleProviderSourceOptions struct {
