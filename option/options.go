@@ -17,6 +17,7 @@ type _Options struct {
 	Listen     *badoption.Addr                      `json:"listen,omitempty"`
 	ListenPort uint16                               `json:"listen_port,omitempty"`
 	Endpoints  *badjson.TypedMap[string, *Endpoint] `json:"endpoints,omitempty"`
+	Resources  *ResourceOptions                     `json:"resources,omitempty"`
 	option.InboundTLSOptionsContainer
 	Cache      *CacheOptions `json:"cache,omitempty"`
 	RawMessage []byte        `json:"-"`

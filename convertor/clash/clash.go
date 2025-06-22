@@ -11,7 +11,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/srsc/adapter"
 	C "github.com/sagernet/srsc/constant"
-	"github.com/sagernet/srsc/convertor/adguard"
 
 	"gopkg.in/yaml.v3"
 )
@@ -102,7 +101,7 @@ func (c *RuleProvider) From(ctx context.Context, content []byte, options adapter
 				}
 			}
 		}
-		return rules, nil
+		return adapter.MergeRules(rules), nil
 	case "":
 		return nil, E.New("missing source behavior in options")
 	default:
@@ -111,12 +110,16 @@ func (c *RuleProvider) From(ctx context.Context, content []byte, options adapter
 }
 
 func (c *RuleProvider) To(ctx context.Context, contentRules []adapter.Rule, options adapter.ConvertOptions) ([]byte, error) {
+	convertedRules, err := adapter.EmbedResourceRules(ctx, contentRules)
+	if err != nil {
+		return nil, err
+	}
 	format := options.Options.TargetConvertOptions.ClashOptions.TargetFormat
 	behavior := options.Options.TargetConvertOptions.ClashOptions.TargetBehavior
 	if format == "mrs" {
-		return toMrs(behavior, contentRules)
+		return toMrs(behavior, convertedRules)
 	}
-	ruleLines, err := toLines(behavior, contentRules)
+	ruleLines, err := toLines(behavior, convertedRules)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +182,7 @@ func toLines(behavior string, rules []adapter.Rule) ([]string, error) {
 	switch behavior {
 	case "domain":
 		for _, rule := range rules {
-			if rule.Type != boxConstant.RuleTypeDefault || !adguard.IsDestinationAddressRule(rule.DefaultOptions) {
+			if rule.Type != boxConstant.RuleTypeDefault || !adapter.IsDestinationAddressRule(rule.DefaultOptions) {
 				continue
 			}
 			for _, domain := range rule.DefaultOptions.Domain {
@@ -192,7 +195,7 @@ func toLines(behavior string, rules []adapter.Rule) ([]string, error) {
 		return lines, nil
 	case "ipcidr":
 		for _, rule := range rules {
-			if rule.Type != boxConstant.RuleTypeDefault || !adguard.IsDestinationAddressRule(rule.DefaultOptions) {
+			if rule.Type != boxConstant.RuleTypeDefault || !adapter.IsDestinationAddressRule(rule.DefaultOptions) {
 				continue
 			}
 			for _, ipCidr := range rule.DefaultOptions.IPCIDR {

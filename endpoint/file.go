@@ -24,6 +24,7 @@ type FileEndpoint struct {
 	ctx             context.Context
 	logger          logger.ContextLogger
 	cache           adapter.Cache
+	resources       adapter.ResourceManager
 	index           int
 	source          adapter.Source
 	sourceConvertor adapter.Convertor
@@ -36,6 +37,7 @@ func NewFileEndpoint(ctx context.Context, logger logger.ContextLogger, index int
 		ctx:            ctx,
 		logger:         logger,
 		cache:          service.FromContext[adapter.Cache](ctx),
+		resources:      service.FromContext[adapter.ResourceManager](ctx),
 		index:          index,
 		convertOptions: options.ConvertOptions,
 	}
@@ -138,17 +140,17 @@ func (f *FileEndpoint) serveHTTP0(w http.ResponseWriter, r *http.Request) error 
 		return E.Cause(err, "encode target")
 	}
 	//}
-	cache := &adapter.SavedBinary{
+	cachedBinary = &adapter.SavedBinary{
 		Content:     binary,
 		LastUpdated: response.LastUpdated,
 		LastEtag:    response.ETag,
 	}
-	err = f.cache.SaveBinary(cacheKey, cache)
+	err = f.cache.SaveBinary(cacheKey, cachedBinary)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return E.Cause(err, "save cache binary")
 	}
-	return f.writeCache(w, cache, convertOptions)
+	return f.writeCache(w, cachedBinary, convertOptions)
 }
 
 func (f *FileEndpoint) writeCache(w http.ResponseWriter, cachedBinary *adapter.SavedBinary, convertOptions adapter.ConvertOptions) error {

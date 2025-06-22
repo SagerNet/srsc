@@ -116,7 +116,7 @@ func (o SourceConvertOptions) MarshalJSON() ([]byte, error) {
 		v = o.AdGuardOptions
 	case C.ConvertorTypeClashRuleProvider:
 		v = o.ClashOptions
-	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary:
+	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary, C.ConvertorTypeSurgeRuleSet, C.ConvertorTypeSurgeDomainSet:
 	case "":
 		return nil, E.New("missing source type")
 	default:
@@ -139,7 +139,7 @@ func (o *SourceConvertOptions) UnmarshalJSON(bytes []byte) error {
 		v = &o.AdGuardOptions
 	case C.ConvertorTypeClashRuleProvider:
 		v = &o.ClashOptions
-	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary:
+	case C.ConvertorTypeRuleSetSource, C.ConvertorTypeRuleSetBinary, C.ConvertorTypeSurgeRuleSet, C.ConvertorTypeSurgeDomainSet:
 	case "":
 		return E.New("missing source type")
 	default:

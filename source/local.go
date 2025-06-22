@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"os"
+	"strings"
 	"text/template"
 	"time"
 
@@ -18,7 +19,12 @@ type Local struct {
 }
 
 func NewLocal(ctx context.Context, options option.SourceOptions) (*Local, error) {
-	pathTemplate, err := template.New("local path").Parse(options.LocalOptions.Path)
+	pathTemplate := template.New("local path")
+	pathTemplate.Funcs(template.FuncMap{
+		"toLower": strings.ToLower,
+		"toUpper": strings.ToUpper,
+	})
+	_, err := pathTemplate.Parse(options.LocalOptions.Path)
 	if err != nil {
 		return nil, err
 	}

@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/netip"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -459,7 +458,7 @@ parse:
 	for {
 		switch rule.Type {
 		case C.RuleTypeLogical:
-			if !(len(rule.LogicalOptions.Rules) == 2 && rule.LogicalOptions.Rules[0].Type == C.RuleTypeDefault && IsDestinationAddressRule(rule.LogicalOptions.Rules[0].DefaultOptions)) {
+			if !(len(rule.LogicalOptions.Rules) == 2 && rule.LogicalOptions.Rules[0].Type == C.RuleTypeDefault && adapter.IsDestinationAddressRule(rule.LogicalOptions.Rules[0].DefaultOptions)) {
 				return
 			}
 			if rule.LogicalOptions.Mode == C.LogicalTypeAnd && rule.LogicalOptions.Rules[0].DefaultOptions.Invert {
@@ -484,7 +483,7 @@ parse:
 			}
 			rule = rule.LogicalOptions.Rules[1]
 		case C.RuleTypeDefault:
-			if !IsDestinationAddressRule(rule.DefaultOptions) {
+			if !adapter.IsDestinationAddressRule(rule.DefaultOptions) {
 				return
 			}
 			domainAdGuard = rule.DefaultOptions.AdGuardDomain
@@ -628,19 +627,4 @@ func parseADGuardIPCIDRLine(ruleLine string) (netip.Prefix, error) {
 		ruleParts = append(ruleParts, 0)
 	}
 	return netip.PrefixFrom(netip.AddrFrom4(*(*[4]byte)(ruleParts)), bitLen), nil
-}
-
-func IsDestinationAddressRule(rule adapter.DefaultRule) bool {
-	var defaultRule adapter.DefaultRule
-	defaultRule.Domain = rule.Domain
-	defaultRule.DomainSuffix = rule.DomainSuffix
-	defaultRule.DomainKeyword = rule.DomainKeyword
-	defaultRule.DomainRegex = rule.DomainRegex
-	// other DA rules
-	defaultRule.IPCIDR = rule.IPCIDR
-	defaultRule.GEOIP = rule.GEOIP
-	defaultRule.IPASN = rule.IPASN
-
-	defaultRule.Invert = rule.Invert
-	return reflect.DeepEqual(rule, defaultRule)
 }

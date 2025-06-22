@@ -121,23 +121,23 @@ func toClassicalLine(rule adapter.Rule) ([]string, error) {
 				return nil, E.New("unknown network: ", network)
 			}
 		}
-		if rule.DefaultOptions.GEOIP != "" {
-			lines = append(lines, "GEOIP,"+rule.DefaultOptions.GEOIP)
+		for _, geoip := range rule.DefaultOptions.GEOIP {
+			lines = append(lines, "GEOIP,"+geoip)
 		}
-		if rule.DefaultOptions.SourceGEOIP != "" {
-			lines = append(lines, "SRC-GEOIP,"+rule.DefaultOptions.SourceGEOIP)
+		for _, sourceGeoip := range rule.DefaultOptions.SourceGEOIP {
+			lines = append(lines, "SRC-GEOIP,"+sourceGeoip)
 		}
-		if rule.DefaultOptions.IPASN != "" {
-			lines = append(lines, "IP-ASN,"+rule.DefaultOptions.IPASN)
+		for _, ipasn := range rule.DefaultOptions.IPASN {
+			lines = append(lines, "IP-ASN,"+ipasn)
 		}
-		if rule.DefaultOptions.SourceIPASN != "" {
-			lines = append(lines, "SRC-IP-ASN,"+rule.DefaultOptions.SourceIPASN)
+		for _, sourceIPASN := range rule.DefaultOptions.SourceIPASN {
+			lines = append(lines, "SRC-IP-ASN,"+sourceIPASN)
 		}
-		if rule.DefaultOptions.Inbound != "" {
-			lines = append(lines, "IN-NAME,"+rule.DefaultOptions.Inbound)
+		for _, inbound := range rule.DefaultOptions.Inbound {
+			lines = append(lines, "IN-NAME,"+inbound)
 		}
-		if rule.DefaultOptions.InboundType != "" {
-			lines = append(lines, "IN-TYPE,"+rule.DefaultOptions.InboundType)
+		for _, inboundType := range rule.DefaultOptions.InboundType {
+			lines = append(lines, "IN-TYPE,"+inboundType)
 		}
 		if len(rule.DefaultOptions.InboundPort) > 0 {
 			var portRangeList []string
@@ -146,8 +146,8 @@ func toClassicalLine(rule adapter.Rule) ([]string, error) {
 			}
 			lines = append(lines, "IN-PORT,"+strings.Join(portRangeList, "/"))
 		}
-		if rule.DefaultOptions.InboundUser != "" {
-			lines = append(lines, "IN-USER,"+rule.DefaultOptions.InboundUser)
+		for _, inboundUser := range rule.DefaultOptions.InboundUser {
+			lines = append(lines, "IN-USER,"+inboundUser)
 		}
 		return lines, nil
 	}
@@ -217,17 +217,17 @@ func fromClassicalLine(ruleLine string) (*adapter.Rule, error) {
 			return nil, E.New("unknown network: ", payload)
 		}
 	case "GEOIP":
-		rule.GEOIP = payload
+		rule.GEOIP = append(rule.GEOIP, payload)
 	case "SRC-GEOIP":
-		rule.SourceGEOIP = payload
+		rule.SourceGEOIP = append(rule.SourceGEOIP, payload)
 	case "IP-ASN":
-		rule.IPASN = payload
+		rule.IPASN = append(rule.IPASN, payload)
 	case "SRC-IP-ASN":
-		rule.SourceIPASN = payload
+		rule.SourceIPASN = append(rule.SourceIPASN, payload)
 	case "IN-NAME":
-		rule.Inbound = payload
+		rule.Inbound = append(rule.Inbound, payload)
 	case "IN-TYPE":
-		rule.InboundType = payload
+		rule.InboundType = append(rule.InboundType, payload)
 	case "IN-PORT":
 		portRanges, err := utils.NewUnsignedRanges[uint16](payload)
 		if err == nil {
@@ -237,7 +237,7 @@ func fromClassicalLine(ruleLine string) (*adapter.Rule, error) {
 			rule.InboundPort = append(rule.InboundPort, ranges.New(portRange.Start(), portRange.End()))
 		}
 	case "IN-USER":
-		rule.InboundUser = payload
+		rule.InboundUser = append(rule.InboundUser, payload)
 	case "AND", "OR", "NOT":
 		return parseLogicLine(ruleType, payload, fromClassicalLine)
 	default:

@@ -14,7 +14,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/rw"
 	"github.com/sagernet/srsc/adapter"
-	"github.com/sagernet/srsc/convertor/adguard"
 	"github.com/sagernet/srsc/convertor/internal/meta_cidr"
 	"github.com/sagernet/srsc/convertor/internal/meta_domainset"
 
@@ -115,7 +114,7 @@ func toMrs(behavior string, rules []adapter.Rule) ([]byte, error) {
 	}
 	var ruleSize int64
 	for _, rule := range rules {
-		if rule.Type != C.RuleTypeDefault || !adguard.IsDestinationAddressRule(rule.DefaultOptions) {
+		if rule.Type != C.RuleTypeDefault || !adapter.IsDestinationAddressRule(rule.DefaultOptions) {
 			continue
 		}
 		if behavior == "domain" {
@@ -140,7 +139,7 @@ func toMrs(behavior string, rules []adapter.Rule) ([]byte, error) {
 	domainTrie := trie.New[struct{}]()
 	ipCidrTrie := cidr.NewIpCidrSet()
 	for _, rule := range rules {
-		if rule.Type != C.RuleTypeDefault || !adguard.IsDestinationAddressRule(rule.DefaultOptions) {
+		if rule.Type != C.RuleTypeDefault || !adapter.IsDestinationAddressRule(rule.DefaultOptions) {
 			continue
 		}
 		if behavior == "domain" {

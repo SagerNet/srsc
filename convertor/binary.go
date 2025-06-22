@@ -33,10 +33,14 @@ func (s *RuleSetBinary) From(ctx context.Context, content []byte, _ adapter.Conv
 }
 
 func (s *RuleSetBinary) To(ctx context.Context, contentRules []adapter.Rule, options adapter.ConvertOptions) ([]byte, error) {
+	convertedRules, err := adapter.EmbedResourceRules(ctx, contentRules)
+	if err != nil {
+		return nil, err
+	}
 	ruleSet := &option.PlainRuleSetCompat{
 		Version: boxConstant.RuleSetVersionCurrent,
 		Options: option.PlainRuleSet{
-			Rules: common.Map(common.Filter(contentRules, func(it adapter.Rule) bool {
+			Rules: common.Map(common.Filter(convertedRules, func(it adapter.Rule) bool {
 				return it.Headlessable()
 			}), adapter.Rule.ToHeadless),
 		},
@@ -45,7 +49,7 @@ func (s *RuleSetBinary) To(ctx context.Context, contentRules []adapter.Rule, opt
 		Downgrade(ruleSet, options.Metadata.Version)
 	}
 	buffer := new(bytes.Buffer)
-	err := srs.Write(buffer, ruleSet.Options, ruleSet.Version)
+	err = srs.Write(buffer, ruleSet.Options, ruleSet.Version)
 	if err != nil {
 		return nil, err
 	}

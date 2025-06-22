@@ -51,11 +51,11 @@ func ToSurgeLines(rule adapter.Rule) ([]string, error) {
 		len(rule.DefaultOptions.PackageName) > 0 ||
 		rule.DefaultOptions.NetworkIsExpensive ||
 		rule.DefaultOptions.NetworkIsConstrained ||
-		rule.DefaultOptions.SourceGEOIP != "" ||
-		rule.DefaultOptions.SourceIPASN != "" ||
-		rule.DefaultOptions.Inbound != "" ||
-		rule.DefaultOptions.InboundType != "" ||
-		rule.DefaultOptions.InboundUser != "" {
+		len(rule.DefaultOptions.SourceGEOIP) > 0 ||
+		len(rule.DefaultOptions.SourceIPASN) > 0 ||
+		len(rule.DefaultOptions.Inbound) > 0 ||
+		len(rule.DefaultOptions.InboundType) > 0 ||
+		len(rule.DefaultOptions.InboundUser) > 0 {
 		return nil, E.New("The rule contains options that Surge does not support")
 	} else {
 		var lines []string
@@ -145,11 +145,11 @@ func ToSurgeLines(rule adapter.Rule) ([]string, error) {
 				lines = append(lines, "SUBNET,TYPE:CELLULAR")
 			}
 		}
-		if rule.DefaultOptions.GEOIP != "" {
-			lines = append(lines, "GEOIP,"+rule.DefaultOptions.GEOIP)
+		for _, geoip := range rule.DefaultOptions.GEOIP {
+			lines = append(lines, "GEOIP,"+geoip)
 		}
-		if rule.DefaultOptions.IPASN != "" {
-			lines = append(lines, "IP-ASN,"+rule.DefaultOptions.IPASN)
+		for _, ipasn := range rule.DefaultOptions.IPASN {
+			lines = append(lines, "IP-ASN,"+ipasn)
 		}
 		return lines, nil
 	}
@@ -222,9 +222,9 @@ func FromSurgeLine(ruleLine string) (*adapter.Rule, error) {
 			return nil, E.New("unsupported subnet rule: ", ruleLine)
 		}
 	case "GEOIP":
-		boxRule.GEOIP = payload
+		boxRule.GEOIP = append(boxRule.GEOIP, payload)
 	case "IP-ASN":
-		boxRule.IPASN = payload
+		boxRule.IPASN = append(boxRule.IPASN, payload)
 	case "AND", "OR", "NOT":
 		return parseLogicLine(ruleType, payload, FromSurgeLine)
 	default:

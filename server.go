@@ -23,6 +23,7 @@ import (
 	C "github.com/sagernet/srsc/constant"
 	"github.com/sagernet/srsc/endpoint"
 	"github.com/sagernet/srsc/option"
+	"github.com/sagernet/srsc/resource"
 
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/net/http2"
@@ -69,6 +70,11 @@ func NewServer(options Options) (*Server, error) {
 		return nil, E.Cause(err, "create cache")
 	}
 	service.MustRegister[adapter.Cache](ctx, serviceCache)
+	resourceManage, err := resource.NewManager(ctx, options.Logger, common.PtrValueOrDefault(options.Resources))
+	if err != nil {
+		return nil, E.Cause(err, "create resource manager")
+	}
+	service.MustRegister[adapter.ResourceManager](ctx, resourceManage)
 	chiRouter := chi.NewRouter()
 	s := &Server{
 		createdAt: createdAt,

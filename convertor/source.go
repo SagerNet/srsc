@@ -39,10 +39,14 @@ func (s *RuleSetSource) From(ctx context.Context, content []byte, _ adapter.Conv
 }
 
 func (s *RuleSetSource) To(ctx context.Context, contentRules []adapter.Rule, options adapter.ConvertOptions) ([]byte, error) {
+	convertedRules, err := adapter.EmbedResourceRules(ctx, contentRules)
+	if err != nil {
+		return nil, err
+	}
 	ruleSet := &option.PlainRuleSetCompat{
 		Version: boxConstant.RuleSetVersionCurrent,
 		Options: option.PlainRuleSet{
-			Rules: common.Map(common.Filter(contentRules, func(it adapter.Rule) bool {
+			Rules: common.Map(common.Filter(convertedRules, func(it adapter.Rule) bool {
 				return it.Headlessable()
 			}), adapter.Rule.ToHeadless),
 		},
@@ -53,7 +57,7 @@ func (s *RuleSetSource) To(ctx context.Context, contentRules []adapter.Rule, opt
 	buffer := new(bytes.Buffer)
 	encoder := json.NewEncoder(buffer)
 	encoder.SetIndent("", "  ")
-	err := encoder.Encode(ruleSet)
+	err = encoder.Encode(ruleSet)
 	if err != nil {
 		return nil, err
 	}

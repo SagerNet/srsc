@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"strings"
 	"text/template"
 	"time"
 
@@ -40,7 +41,12 @@ type Remote struct {
 }
 
 func NewRemote(ctx context.Context, options option.SourceOptions) (*Remote, error) {
-	cacheTemplate, err := template.New("remote URL").Parse(options.RemoteOptions.URL)
+	pathTemplate := template.New("remote URL")
+	pathTemplate.Funcs(template.FuncMap{
+		"toLower": strings.ToLower,
+		"toUpper": strings.ToUpper,
+	})
+	_, err := pathTemplate.Parse(options.RemoteOptions.URL)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +136,7 @@ func NewRemote(ctx context.Context, options option.SourceOptions) (*Remote, erro
 	}
 	return &Remote{
 		ctx:          ctx,
-		pathTemplate: cacheTemplate,
+		pathTemplate: pathTemplate,
 		httpClient: &http.Client{
 			Transport: httpTransport,
 		},
