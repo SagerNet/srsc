@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 
-	boxOption "github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/logger"
@@ -127,13 +126,13 @@ func (f *FileEndpoint) serveHTTP0(w http.ResponseWriter, r *http.Request) error 
 	}
 	// binary := response.Content
 	// if f.sourceConvertor.Type() != f.targetConvertor.Type() {
-	var options *boxOption.PlainRuleSetCompat
-	options, err = f.sourceConvertor.From(f.ctx, response.Content, convertOptions)
+	var rules []adapter.Rule
+	rules, err = f.sourceConvertor.From(f.ctx, response.Content, convertOptions)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return E.Cause(err, "decode source")
 	}
-	binary, err := f.targetConvertor.To(f.ctx, options, convertOptions)
+	binary, err := f.targetConvertor.To(f.ctx, rules, convertOptions)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return E.Cause(err, "encode target")

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	boxConstant "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/srsc/adapter"
 	C "github.com/sagernet/srsc/constant"
 	"github.com/sagernet/srsc/convertor/clash"
@@ -28,8 +27,8 @@ func (s *SurgeRuleSet) ContentType(options adapter.ConvertOptions) string {
 	return "text/plain"
 }
 
-func (s *SurgeRuleSet) From(ctx context.Context, content []byte, options adapter.ConvertOptions) (*option.PlainRuleSetCompat, error) {
-	var rules []option.HeadlessRule
+func (s *SurgeRuleSet) From(ctx context.Context, content []byte, options adapter.ConvertOptions) ([]adapter.Rule, error) {
+	var rules []adapter.Rule
 	scanner := bufio.NewScanner(bytes.NewReader(content))
 	for scanner.Scan() {
 		rule, _ := clash.FromSurgeLine(scanner.Text())
@@ -37,16 +36,17 @@ func (s *SurgeRuleSet) From(ctx context.Context, content []byte, options adapter
 			rules = append(rules, *rule)
 		}
 	}
-	return &option.PlainRuleSetCompat{
-		Version: boxConstant.RuleSetVersionCurrent,
-		Options: option.PlainRuleSet{Rules: rules},
-	}, nil
+	return rules, nil
 }
 
-func (s *SurgeRuleSet) To(ctx context.Context, source *option.PlainRuleSetCompat, options adapter.ConvertOptions) ([]byte, error) {
+func (s *SurgeRuleSet) To(ctx context.Context, contentRules []adapter.Rule, options adapter.ConvertOptions) ([]byte, error) {
 	var lines []string
-	for _, rule := range source.Options.Rules {
-		lines = append(lines, clash.ToSurgeLines(&rule)...)
+	for _, rule := range contentRules {
+		ruleLines, err := clash.ToSurgeLines(rule)
+		if err != nil {
+			continue
+		}
+		lines = append(lines, ruleLines...)
 	}
 	return []byte(strings.Join(lines, "\n")), nil
 }
@@ -61,9 +61,9 @@ func (s *SurgeDomainSet) ContentType(options adapter.ConvertOptions) string {
 	return "text/plain"
 }
 
-func (s *SurgeDomainSet) From(ctx context.Context, binary []byte, options adapter.ConvertOptions) (*option.PlainRuleSetCompat, error) {
-	var rule option.DefaultHeadlessRule
-	scanner := bufio.NewScanner(bytes.NewReader(binary))
+func (s *SurgeDomainSet) From(ctx context.Context, content []byte, options adapter.ConvertOptions) ([]adapter.Rule, error) {
+	var rule adapter.DefaultRule
+	scanner := bufio.NewScanner(bytes.NewReader(content))
 	for scanner.Scan() {
 		ruleLine := strings.TrimSpace(scanner.Text())
 		if ruleLine == "" || strings.HasPrefix(ruleLine, "#") {
@@ -75,20 +75,12 @@ func (s *SurgeDomainSet) From(ctx context.Context, binary []byte, options adapte
 			rule.Domain = append(rule.Domain, ruleLine)
 		}
 	}
-	return &option.PlainRuleSetCompat{
-		Version: boxConstant.RuleSetVersionCurrent,
-		Options: option.PlainRuleSet{
-			Rules: []option.HeadlessRule{{
-				Type:           boxConstant.RuleTypeDefault,
-				DefaultOptions: rule,
-			}},
-		},
-	}, nil
+	return []adapter.Rule{{Type: boxConstant.RuleTypeDefault, DefaultOptions: rule}}, nil
 }
 
-func (s *SurgeDomainSet) To(ctx context.Context, source *option.PlainRuleSetCompat, options adapter.ConvertOptions) ([]byte, error) {
+func (s *SurgeDomainSet) To(ctx context.Context, contentRules []adapter.Rule, options adapter.ConvertOptions) ([]byte, error) {
 	var output bytes.Buffer
-	for _, rule := range source.Options.Rules {
+	for _, rule := range contentRules {
 		if rule.Type == boxConstant.RuleTypeDefault {
 			for _, domain := range rule.DefaultOptions.Domain {
 				output.WriteString(domain + "\n")

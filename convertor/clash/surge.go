@@ -11,27 +11,52 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/ranges"
+	"github.com/sagernet/srsc/adapter"
 )
 
-func ToSurgeLines(rule *option.HeadlessRule) []string {
+func ToSurgeLines(rule adapter.Rule) ([]string, error) {
 	if rule.Type == C.RuleTypeLogical {
 		var subRules []string
 		for _, subRule := range rule.LogicalOptions.Rules {
-			subRules = append(subRules, "("+strings.Join(ToSurgeLines(&subRule), ",")+")")
+			subLines, err := ToSurgeLines(subRule)
+			if err != nil {
+				return nil, err
+			}
+			subRules = append(subRules, "("+strings.Join(subLines, ",")+")")
 		}
 		if rule.LogicalOptions.Mode == C.LogicalTypeAnd {
 			if rule.LogicalOptions.Invert {
-				return []string{"NOT,(" + strings.Join(subRules, ","), ")"}
+				return []string{"NOT,(" + strings.Join(subRules, ","), ")"}, nil
 			} else {
-				return []string{"AND,(" + strings.Join(subRules, ","), ")"}
+				return []string{"AND,(" + strings.Join(subRules, ","), ")"}, nil
 			}
 		} else {
 			if rule.LogicalOptions.Invert {
-				return []string{"NOT,(AND,(" + strings.Join(subRules, ","), "))"}
+				return []string{"NOT,(AND,(" + strings.Join(subRules, ","), "))"}, nil
 			} else {
-				return []string{"OR,(" + strings.Join(subRules, ","), ")"}
+				return []string{"OR,(" + strings.Join(subRules, ","), ")"}, nil
 			}
 		}
+	} else if rule.DefaultOptions.Invert {
+		rule.DefaultOptions.Invert = false
+		invertLines, err := ToSurgeLines(rule)
+		if err != nil {
+			return nil, err
+		}
+		return []string{"NOT,(" + strings.Join(invertLines, ","), ")"}, nil
+	} else if len(rule.DefaultOptions.QueryType) > 0 ||
+		len(rule.DefaultOptions.Network) > 0 ||
+		len(rule.DefaultOptions.ProcessPath) > 0 ||
+		len(rule.DefaultOptions.ProcessPathRegex) > 0 ||
+		len(rule.DefaultOptions.PackageName) > 0 ||
+		rule.DefaultOptions.NetworkIsExpensive ||
+		rule.DefaultOptions.NetworkIsConstrained ||
+		rule.DefaultOptions.SourceGEOIP != "" ||
+		rule.DefaultOptions.SourceIPASN != "" ||
+		rule.DefaultOptions.Inbound != "" ||
+		rule.DefaultOptions.InboundType != "" ||
+		rule.DefaultOptions.InboundUser != "" {
+		return nil, E.New("The rule contains options that Surge does not support")
 	} else {
 		var lines []string
 		for _, domain := range rule.DefaultOptions.Domain {
@@ -76,7 +101,7 @@ func ToSurgeLines(rule *option.HeadlessRule) []string {
 		if len(rule.DefaultOptions.PortRange) > 0 {
 			rangeList, err := convertPortRangeList(rule.DefaultOptions.PortRange)
 			if err != nil {
-				return nil
+				return nil, err
 			}
 			lines = append(lines, common.Map(rangeList, func(it string) string {
 				return "DEST-PORT," + it
@@ -88,22 +113,51 @@ func ToSurgeLines(rule *option.HeadlessRule) []string {
 		if len(rule.DefaultOptions.SourcePortRange) > 0 {
 			rangeList, err := convertPortRangeList(rule.DefaultOptions.SourcePortRange)
 			if err != nil {
-				return nil
+				return nil, err
 			}
 			lines = append(lines, common.Map(rangeList, func(it string) string {
 				return "SRC-PORT," + it
 			})...)
 		}
+		for _, inboundPort := range rule.DefaultOptions.InboundPort {
+			if inboundPort.Start == inboundPort.End {
+				lines = append(lines, "IN-PORT,"+F.ToString(inboundPort.Start))
+			} else {
+				lines = append(lines, "IN-PORT,"+F.ToString(inboundPort.Start, "-", inboundPort.End))
+			}
+		}
 		for _, processName := range rule.DefaultOptions.ProcessName {
 			lines = append(lines, "PROCESS-NAME,"+processName)
 		}
-		return lines
+		for _, wifiSSID := range rule.DefaultOptions.WIFISSID {
+			lines = append(lines, "SUBNET,SSID:"+wifiSSID)
+		}
+		for _, wifiBSSID := range rule.DefaultOptions.WIFIBSSID {
+			lines = append(lines, "SUBNET,BSSID:"+wifiBSSID)
+		}
+		for _, networkType := range rule.DefaultOptions.NetworkType {
+			switch networkType {
+			case option.InterfaceType(C.InterfaceTypeWIFI):
+				lines = append(lines, "SUBNET,TYPE:WIFI")
+			case option.InterfaceType(C.InterfaceTypeEthernet):
+				lines = append(lines, "SUBNET,TYPE:WIRED")
+			case option.InterfaceType(C.InterfaceTypeCellular):
+				lines = append(lines, "SUBNET,TYPE:CELLULAR")
+			}
+		}
+		if rule.DefaultOptions.GEOIP != "" {
+			lines = append(lines, "GEOIP,"+rule.DefaultOptions.GEOIP)
+		}
+		if rule.DefaultOptions.IPASN != "" {
+			lines = append(lines, "IP-ASN,"+rule.DefaultOptions.IPASN)
+		}
+		return lines, nil
 	}
 }
 
-func FromSurgeLine(ruleLine string) (*option.HeadlessRule, error) {
+func FromSurgeLine(ruleLine string) (*adapter.Rule, error) {
 	ruleType, payload, _ := parseRule(ruleLine)
-	var boxRule option.DefaultHeadlessRule
+	var boxRule adapter.DefaultRule
 	switch ruleType {
 	case "DOMAIN":
 		boxRule.Domain = append(boxRule.Domain, payload)
@@ -137,6 +191,12 @@ func FromSurgeLine(ruleLine string) (*option.HeadlessRule, error) {
 		} else {
 			boxRule.PortRange = append(boxRule.PortRange, F.ToString(portRange.Start, ":", portRange.End))
 		}
+	case "IN-PORT":
+		portRange, err := parseSurgePortRange(payload)
+		if err != nil {
+			return nil, err
+		}
+		boxRule.InboundPort = []ranges.Range[uint16]{portRange}
 	case "PROCESS-NAME":
 		boxRule.ProcessName = append(boxRule.ProcessName, payload)
 	case "SUBNET":
@@ -161,12 +221,16 @@ func FromSurgeLine(ruleLine string) (*option.HeadlessRule, error) {
 		default:
 			return nil, E.New("unsupported subnet rule: ", ruleLine)
 		}
+	case "GEOIP":
+		boxRule.GEOIP = payload
+	case "IP-ASN":
+		boxRule.IPASN = payload
 	case "AND", "OR", "NOT":
 		return parseLogicLine(ruleType, payload, FromSurgeLine)
 	default:
 		return nil, E.New("unsupported rule type: ", ruleType)
 	}
-	return &option.HeadlessRule{
+	return &adapter.Rule{
 		Type:           C.RuleTypeDefault,
 		DefaultOptions: boxRule,
 	}, nil

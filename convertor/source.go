@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	boxConstant "github.com/sagernet/sing-box/constant"
-	boxOption "github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
@@ -27,32 +27,40 @@ func (s *RuleSetSource) ContentType(_ adapter.ConvertOptions) string {
 	return "application/json"
 }
 
-func (s *RuleSetSource) From(ctx context.Context, binary []byte, _ adapter.ConvertOptions) (*boxOption.PlainRuleSetCompat, error) {
-	if !strings.HasPrefix(string(binary), "{") {
+func (s *RuleSetSource) From(ctx context.Context, content []byte, _ adapter.ConvertOptions) ([]adapter.Rule, error) {
+	if !strings.HasPrefix(string(content), "{") {
 		return nil, E.New("source is not a JSON object")
 	}
-	options, err := json.UnmarshalExtendedContext[boxOption.PlainRuleSetCompat](ctx, binary)
+	options, err := json.UnmarshalExtendedContext[option.PlainRuleSetCompat](ctx, content)
 	if err != nil {
 		return nil, err
 	}
-	return &options, nil
+	return common.Map(options.Options.Rules, adapter.RuleFrom), nil
 }
 
-func (s *RuleSetSource) To(ctx context.Context, source *boxOption.PlainRuleSetCompat, options adapter.ConvertOptions) ([]byte, error) {
+func (s *RuleSetSource) To(ctx context.Context, contentRules []adapter.Rule, options adapter.ConvertOptions) ([]byte, error) {
+	ruleSet := &option.PlainRuleSetCompat{
+		Version: boxConstant.RuleSetVersionCurrent,
+		Options: option.PlainRuleSet{
+			Rules: common.Map(common.Filter(contentRules, func(it adapter.Rule) bool {
+				return it.Headlessable()
+			}), adapter.Rule.ToHeadless),
+		},
+	}
 	if options.Metadata.Platform == C.PlatformSingBox && options.Metadata.Version != nil {
-		Downgrade(source, options.Metadata.Version)
+		Downgrade(ruleSet, options.Metadata.Version)
 	}
 	buffer := new(bytes.Buffer)
 	encoder := json.NewEncoder(buffer)
 	encoder.SetIndent("", "  ")
-	err := encoder.Encode(source)
+	err := encoder.Encode(ruleSet)
 	if err != nil {
 		return nil, err
 	}
 	return buffer.Bytes(), nil
 }
 
-func Downgrade(source *boxOption.PlainRuleSetCompat, version *semver.Version) {
+func Downgrade(source *option.PlainRuleSetCompat, version *semver.Version) {
 	if version.LessThan(semver.ParseVersion("1.11.0")) {
 		source.Version = boxConstant.RuleSetVersion2
 		source.Options.Rules = common.Filter(source.Options.Rules, filter1100Rule)
@@ -62,13 +70,13 @@ func Downgrade(source *boxOption.PlainRuleSetCompat, version *semver.Version) {
 	}
 }
 
-func filter1100Rule(it boxOption.HeadlessRule) bool {
-	return !hasRule([]boxOption.HeadlessRule{it}, func(it boxOption.DefaultHeadlessRule) bool {
+func filter1100Rule(it option.HeadlessRule) bool {
+	return !hasRule([]option.HeadlessRule{it}, func(it option.DefaultHeadlessRule) bool {
 		return len(it.NetworkType) > 0 || it.NetworkIsExpensive || it.NetworkIsConstrained
 	})
 }
 
-func hasRule(rules []boxOption.HeadlessRule, cond func(rule boxOption.DefaultHeadlessRule) bool) bool {
+func hasRule(rules []option.HeadlessRule, cond func(rule option.DefaultHeadlessRule) bool) bool {
 	for _, rule := range rules {
 		switch rule.Type {
 		case boxConstant.RuleTypeDefault:

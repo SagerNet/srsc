@@ -5,7 +5,9 @@ import (
 	"context"
 
 	"github.com/sagernet/sing-box/common/srs"
+	boxConstant "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/srsc/adapter"
 	C "github.com/sagernet/srsc/constant"
 )
@@ -22,20 +24,28 @@ func (s *RuleSetBinary) ContentType(_ adapter.ConvertOptions) string {
 	return "application/octet-stream"
 }
 
-func (s *RuleSetBinary) From(ctx context.Context, binary []byte, _ adapter.ConvertOptions) (*option.PlainRuleSetCompat, error) {
-	options, err := srs.Read(bytes.NewReader(binary), true)
+func (s *RuleSetBinary) From(ctx context.Context, content []byte, _ adapter.ConvertOptions) ([]adapter.Rule, error) {
+	options, err := srs.Read(bytes.NewReader(content), true)
 	if err != nil {
 		return nil, err
 	}
-	return &options, nil
+	return common.Map(options.Options.Rules, adapter.RuleFrom), nil
 }
 
-func (s *RuleSetBinary) To(ctx context.Context, source *option.PlainRuleSetCompat, options adapter.ConvertOptions) ([]byte, error) {
+func (s *RuleSetBinary) To(ctx context.Context, contentRules []adapter.Rule, options adapter.ConvertOptions) ([]byte, error) {
+	ruleSet := &option.PlainRuleSetCompat{
+		Version: boxConstant.RuleSetVersionCurrent,
+		Options: option.PlainRuleSet{
+			Rules: common.Map(common.Filter(contentRules, func(it adapter.Rule) bool {
+				return it.Headlessable()
+			}), adapter.Rule.ToHeadless),
+		},
+	}
 	if options.Metadata.Platform == C.PlatformSingBox && options.Metadata.Version != nil {
-		Downgrade(source, options.Metadata.Version)
+		Downgrade(ruleSet, options.Metadata.Version)
 	}
 	buffer := new(bytes.Buffer)
-	err := srs.Write(buffer, source.Options, source.Version)
+	err := srs.Write(buffer, ruleSet.Options, ruleSet.Version)
 	if err != nil {
 		return nil, err
 	}

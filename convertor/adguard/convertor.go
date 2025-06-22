@@ -15,6 +15,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
+	"github.com/sagernet/srsc/adapter"
 )
 
 type adguardRuleLine struct {
@@ -29,7 +30,7 @@ type adguardRuleLine struct {
 	isImportant    bool
 }
 
-func ToOptions(reader io.Reader, acceptExtendedRules bool, logger logger.Logger) ([]option.HeadlessRule, error) {
+func ToRules(reader io.Reader, acceptExtendedRules bool, logger logger.Logger) ([]adapter.Rule, error) {
 	scanner := bufio.NewScanner(reader)
 	var (
 		ruleLines    []adguardRuleLine
@@ -202,18 +203,20 @@ parseLine:
 	if common.All(ruleLines, func(it adguardRuleLine) bool {
 		return it.isRawDomain
 	}) {
-		return []option.HeadlessRule{
+		return []adapter.Rule{
 			{
 				Type: C.RuleTypeDefault,
-				DefaultOptions: option.DefaultHeadlessRule{
-					Domain: common.Map(ruleLines, func(it adguardRuleLine) string {
-						return it.ruleLine
-					}),
+				DefaultOptions: adapter.DefaultRule{
+					DefaultHeadlessRule: option.DefaultHeadlessRule{
+						Domain: common.Map(ruleLines, func(it adguardRuleLine) string {
+							return it.ruleLine
+						}),
+					},
 				},
 			},
 		}, nil
 	}
-	var currentRule option.HeadlessRule
+	var currentRule adapter.Rule
 	if acceptExtendedRules {
 		mapDomain := func(it adguardRuleLine) string {
 			ruleLine := it.ruleLine
@@ -236,25 +239,29 @@ parseLine:
 		domainRegex := common.Map(common.Filter(ruleLines, func(it adguardRuleLine) bool { return !it.isImportant && it.isRegexp && !it.isExclude }), mapDomain)
 		excludeDomain := common.Map(common.Filter(ruleLines, func(it adguardRuleLine) bool { return !it.isImportant && !it.isRegexp && it.isExclude }), mapDomain)
 		excludeDomainRegex := common.Map(common.Filter(ruleLines, func(it adguardRuleLine) bool { return !it.isImportant && it.isRegexp && it.isExclude }), mapDomain)
-		currentRule = option.HeadlessRule{
+		currentRule = adapter.Rule{
 			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultHeadlessRule{
-				AdGuardDomain: domain,
-				DomainRegex:   domainRegex,
+			DefaultOptions: adapter.DefaultRule{
+				DefaultHeadlessRule: option.DefaultHeadlessRule{
+					AdGuardDomain: domain,
+					DomainRegex:   domainRegex,
+				},
 			},
 		}
 		if len(excludeDomain) > 0 || len(excludeDomainRegex) > 0 {
-			currentRule = option.HeadlessRule{
+			currentRule = adapter.Rule{
 				Type: C.RuleTypeLogical,
-				LogicalOptions: option.LogicalHeadlessRule{
+				LogicalOptions: adapter.LogicalRule{
 					Mode: C.LogicalTypeAnd,
-					Rules: []option.HeadlessRule{
+					Rules: []adapter.Rule{
 						{
 							Type: C.RuleTypeDefault,
-							DefaultOptions: option.DefaultHeadlessRule{
-								AdGuardDomain: excludeDomain,
-								DomainRegex:   excludeDomainRegex,
-								Invert:        true,
+							DefaultOptions: adapter.DefaultRule{
+								DefaultHeadlessRule: option.DefaultHeadlessRule{
+									AdGuardDomain: excludeDomain,
+									DomainRegex:   excludeDomainRegex,
+									Invert:        true,
+								},
 							},
 						},
 						currentRule,
@@ -263,16 +270,18 @@ parseLine:
 			}
 		}
 		if len(importantDomain) > 0 || len(importantDomainRegex) > 0 {
-			currentRule = option.HeadlessRule{
+			currentRule = adapter.Rule{
 				Type: C.RuleTypeLogical,
-				LogicalOptions: option.LogicalHeadlessRule{
+				LogicalOptions: adapter.LogicalRule{
 					Mode: C.LogicalTypeOr,
-					Rules: []option.HeadlessRule{
+					Rules: []adapter.Rule{
 						{
 							Type: C.RuleTypeDefault,
-							DefaultOptions: option.DefaultHeadlessRule{
-								AdGuardDomain: importantDomain,
-								DomainRegex:   importantDomainRegex,
+							DefaultOptions: adapter.DefaultRule{
+								DefaultHeadlessRule: option.DefaultHeadlessRule{
+									AdGuardDomain: importantDomain,
+									DomainRegex:   importantDomainRegex,
+								},
 							},
 						},
 						currentRule,
@@ -281,17 +290,19 @@ parseLine:
 			}
 		}
 		if len(importantExcludeDomain) > 0 || len(importantExcludeDomainRegex) > 0 {
-			currentRule = option.HeadlessRule{
+			currentRule = adapter.Rule{
 				Type: C.RuleTypeLogical,
-				LogicalOptions: option.LogicalHeadlessRule{
+				LogicalOptions: adapter.LogicalRule{
 					Mode: C.LogicalTypeAnd,
-					Rules: []option.HeadlessRule{
+					Rules: []adapter.Rule{
 						{
 							Type: C.RuleTypeDefault,
-							DefaultOptions: option.DefaultHeadlessRule{
-								AdGuardDomain: importantExcludeDomain,
-								DomainRegex:   importantExcludeDomainRegex,
-								Invert:        true,
+							DefaultOptions: adapter.DefaultRule{
+								DefaultHeadlessRule: option.DefaultHeadlessRule{
+									AdGuardDomain: importantExcludeDomain,
+									DomainRegex:   importantExcludeDomainRegex,
+									Invert:        true,
+								},
 							},
 						},
 						currentRule,
@@ -330,27 +341,31 @@ parseLine:
 		excludeDomain := common.Map(common.Filter(ruleLines, func(it adguardRuleLine) bool { return !it.isImportant && !it.isRegexp && it.isExclude && !it.isSuffix }), mapDomain)
 		excludeDomainSuffix := common.Map(common.Filter(ruleLines, func(it adguardRuleLine) bool { return !it.isImportant && !it.isRegexp && it.isExclude && it.isSuffix }), mapDomain)
 		excludeDomainRegex := common.Map(common.Filter(ruleLines, func(it adguardRuleLine) bool { return !it.isImportant && it.isRegexp && it.isExclude }), mapDomain)
-		currentRule = option.HeadlessRule{
+		currentRule = adapter.Rule{
 			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultHeadlessRule{
-				Domain:       domain,
-				DomainSuffix: domainSuffix,
-				DomainRegex:  domainRegex,
+			DefaultOptions: adapter.DefaultRule{
+				DefaultHeadlessRule: option.DefaultHeadlessRule{
+					Domain:       domain,
+					DomainSuffix: domainSuffix,
+					DomainRegex:  domainRegex,
+				},
 			},
 		}
 		if len(excludeDomain) > 0 || len(excludeDomainSuffix) > 0 || len(excludeDomainRegex) > 0 {
-			currentRule = option.HeadlessRule{
+			currentRule = adapter.Rule{
 				Type: C.RuleTypeLogical,
-				LogicalOptions: option.LogicalHeadlessRule{
+				LogicalOptions: adapter.LogicalRule{
 					Mode: C.LogicalTypeAnd,
-					Rules: []option.HeadlessRule{
+					Rules: []adapter.Rule{
 						{
 							Type: C.RuleTypeDefault,
-							DefaultOptions: option.DefaultHeadlessRule{
-								Domain:       excludeDomain,
-								DomainSuffix: excludeDomainSuffix,
-								DomainRegex:  excludeDomainRegex,
-								Invert:       true,
+							DefaultOptions: adapter.DefaultRule{
+								DefaultHeadlessRule: option.DefaultHeadlessRule{
+									Domain:       excludeDomain,
+									DomainSuffix: excludeDomainSuffix,
+									DomainRegex:  excludeDomainRegex,
+									Invert:       true,
+								},
 							},
 						},
 						currentRule,
@@ -359,17 +374,19 @@ parseLine:
 			}
 		}
 		if len(importantDomain) > 0 || len(importantDomainSuffix) > 0 || len(importantDomainRegex) > 0 {
-			currentRule = option.HeadlessRule{
+			currentRule = adapter.Rule{
 				Type: C.RuleTypeLogical,
-				LogicalOptions: option.LogicalHeadlessRule{
+				LogicalOptions: adapter.LogicalRule{
 					Mode: C.LogicalTypeOr,
-					Rules: []option.HeadlessRule{
+					Rules: []adapter.Rule{
 						{
 							Type: C.RuleTypeDefault,
-							DefaultOptions: option.DefaultHeadlessRule{
-								Domain:       importantDomain,
-								DomainSuffix: importantDomainSuffix,
-								DomainRegex:  importantDomainRegex,
+							DefaultOptions: adapter.DefaultRule{
+								DefaultHeadlessRule: option.DefaultHeadlessRule{
+									Domain:       importantDomain,
+									DomainSuffix: importantDomainSuffix,
+									DomainRegex:  importantDomainRegex,
+								},
 							},
 						},
 						currentRule,
@@ -378,18 +395,20 @@ parseLine:
 			}
 		}
 		if len(importantExcludeDomain) > 0 || len(importantExcludeDomainSuffix) > 0 || len(importantExcludeDomainRegex) > 0 {
-			currentRule = option.HeadlessRule{
+			currentRule = adapter.Rule{
 				Type: C.RuleTypeLogical,
-				LogicalOptions: option.LogicalHeadlessRule{
+				LogicalOptions: adapter.LogicalRule{
 					Mode: C.LogicalTypeAnd,
-					Rules: []option.HeadlessRule{
+					Rules: []adapter.Rule{
 						{
 							Type: C.RuleTypeDefault,
-							DefaultOptions: option.DefaultHeadlessRule{
-								Domain:       importantExcludeDomain,
-								DomainSuffix: importantExcludeDomainSuffix,
-								DomainRegex:  importantExcludeDomainRegex,
-								Invert:       true,
+							DefaultOptions: adapter.DefaultRule{
+								DefaultHeadlessRule: option.DefaultHeadlessRule{
+									Domain:       importantExcludeDomain,
+									DomainSuffix: importantExcludeDomainSuffix,
+									DomainRegex:  importantExcludeDomainRegex,
+									Invert:       true,
+								},
 							},
 						},
 						currentRule,
@@ -401,12 +420,12 @@ parseLine:
 	if ignoredLines > 0 {
 		logger.Info("parsed rules: ", len(ruleLines), "/", len(ruleLines)+ignoredLines)
 	}
-	return []option.HeadlessRule{currentRule}, nil
+	return []adapter.Rule{currentRule}, nil
 }
 
 var ErrInvalid = E.New("invalid binary AdGuard rule-set")
 
-func FromOptions(rules []option.HeadlessRule) ([]byte, error) {
+func FromRules(rules []adapter.Rule) ([]byte, error) {
 	if len(rules) == 0 {
 		return nil, os.ErrInvalid
 	}

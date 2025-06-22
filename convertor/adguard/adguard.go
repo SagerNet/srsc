@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 
-	boxConstant "github.com/sagernet/sing-box/constant"
-	boxOption "github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/srsc/adapter"
@@ -24,22 +22,13 @@ func (a *RuleSet) ContentType(options adapter.ConvertOptions) string {
 	return "text/plain"
 }
 
-func (a *RuleSet) From(ctx context.Context, binary []byte, options adapter.ConvertOptions) (*boxOption.PlainRuleSetCompat, error) {
+func (a *RuleSet) From(ctx context.Context, content []byte, options adapter.ConvertOptions) ([]adapter.Rule, error) {
 	if options.Options.AdGuardOptions.AcceptExtendedRules && options.Options.TargetType != C.ConvertorTypeAdGuardRuleSet && options.Options.TargetType != C.ConvertorTypeRuleSetBinary {
-		return nil, E.New("AdGuard rule-set can only be converted to sing-box rule-set binary with `accept_extended_rules` enabled")
+		return nil, E.New("AdGuard rule-set can only be converted to sing-box rule-set binary when `accept_extended_rules` enabled")
 	}
-	rules, err := ToOptions(bytes.NewReader(binary), options.Options.AdGuardOptions.AcceptExtendedRules, logger.NOP())
-	if err != nil {
-		return nil, err
-	}
-	return &boxOption.PlainRuleSetCompat{
-		Version: boxConstant.RuleSetVersionCurrent,
-		Options: boxOption.PlainRuleSet{
-			Rules: rules,
-		},
-	}, nil
+	return ToRules(bytes.NewReader(content), options.Options.AdGuardOptions.AcceptExtendedRules, logger.NOP())
 }
 
-func (a *RuleSet) To(ctx context.Context, source *boxOption.PlainRuleSetCompat, options adapter.ConvertOptions) ([]byte, error) {
-	return FromOptions(source.Options.Rules)
+func (a *RuleSet) To(ctx context.Context, contentRules []adapter.Rule, options adapter.ConvertOptions) ([]byte, error) {
+	return FromRules(contentRules)
 }

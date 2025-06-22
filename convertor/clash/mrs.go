@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/rw"
+	"github.com/sagernet/srsc/adapter"
 	"github.com/sagernet/srsc/convertor/internal/meta_cidr"
 	"github.com/sagernet/srsc/convertor/internal/meta_domainset"
 
@@ -22,7 +23,7 @@ import (
 
 var MrsMagicBytes = [4]byte{'M', 'R', 'S', 1} // MRSv1
 
-func fromMrs(content []byte) (*option.PlainRuleSetCompat, error) {
+func fromMrs(content []byte) ([]adapter.Rule, error) {
 	decoder, err := zstd.NewReader(bytes.NewReader(content))
 	if err != nil {
 		return nil, err
@@ -67,7 +68,7 @@ func fromMrs(content []byte) (*option.PlainRuleSetCompat, error) {
 			return true
 		})
 		sort.Strings(keys)
-		var rule option.DefaultHeadlessRule
+		var rule adapter.DefaultRule
 		for _, key := range keys {
 			if _, ok := slices.BinarySearch(keys, "+."+key); ok {
 				continue
@@ -81,38 +82,27 @@ func fromMrs(content []byte) (*option.PlainRuleSetCompat, error) {
 				rule.Domain = append(rule.Domain, key)
 			}
 		}
-		return &option.PlainRuleSetCompat{
-			Version: C.RuleSetVersionCurrent,
-			Options: option.PlainRuleSet{
-				Rules: []option.HeadlessRule{{
-					Type:           C.RuleTypeDefault,
-					DefaultOptions: rule,
-				}},
-			},
-		}, nil
+		return []adapter.Rule{{Type: C.RuleTypeDefault, DefaultOptions: rule}}, nil
 	case 1:
 		var ipCidrSet *cidr.IpCidrSet
 		ipCidrSet, err = cidr.ReadIpCidrSet(decoder)
 		if err != nil {
 			return nil, err
 		}
-		return &option.PlainRuleSetCompat{
-			Version: C.RuleSetVersionCurrent,
-			Options: option.PlainRuleSet{
-				Rules: []option.HeadlessRule{{
-					Type: C.RuleTypeDefault,
-					DefaultOptions: option.DefaultHeadlessRule{
-						IPCIDR: common.Map(ipCidrSet.ToIPSet().Prefixes(), netip.Prefix.String),
-					},
-				}},
+		return []adapter.Rule{{
+			Type: C.RuleTypeDefault,
+			DefaultOptions: adapter.DefaultRule{
+				DefaultHeadlessRule: option.DefaultHeadlessRule{
+					IPCIDR: common.Map(ipCidrSet.ToIPSet().Prefixes(), netip.Prefix.String),
+				},
 			},
-		}, nil
+		}}, nil
 	default:
 		return nil, E.New("invalid behavior: ", behavior)
 	}
 }
 
-func toMrs(source *option.PlainRuleSetCompat) ([]byte, error) {
+func toMrs(behavior string, rules []adapter.Rule) ([]byte, error) {
 	var output bytes.Buffer
 	encoder, err := zstd.NewWriter(&output, zstd.WithEncoderLevel(zstd.SpeedBestCompression))
 	if err != nil {
@@ -122,15 +112,15 @@ func toMrs(source *option.PlainRuleSetCompat) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(source.Options.Rules[0].DefaultOptions.IPCIDR) > 0 {
-		encoder.Write([]byte{1})
-		err = binary.Write(encoder, binary.BigEndian, int64(len(source.Options.Rules[0].DefaultOptions.IPCIDR)))
+	if behavior == "domain" {
+		encoder.Write([]byte{0})
+		err = binary.Write(encoder, binary.BigEndian, int64(len(rules[0].DefaultOptions.Domain)+len(rules[0].DefaultOptions.DomainSuffix)))
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		encoder.Write([]byte{0})
-		err = binary.Write(encoder, binary.BigEndian, int64(len(source.Options.Rules[0].DefaultOptions.Domain)+len(source.Options.Rules[0].DefaultOptions.DomainSuffix)))
+		encoder.Write([]byte{1})
+		err = binary.Write(encoder, binary.BigEndian, int64(len(rules[0].DefaultOptions.IPCIDR)))
 		if err != nil {
 			return nil, err
 		}
@@ -139,9 +129,9 @@ func toMrs(source *option.PlainRuleSetCompat) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(source.Options.Rules[0].DefaultOptions.IPCIDR) > 0 {
+	if len(rules[0].DefaultOptions.IPCIDR) > 0 {
 		ipCidrTrie := cidr.NewIpCidrSet()
-		for _, rule := range source.Options.Rules[0].DefaultOptions.IPCIDR {
+		for _, rule := range rules[0].DefaultOptions.IPCIDR {
 			ipCidrTrie.AddIpCidrForString(rule)
 		}
 		err = ipCidrTrie.WriteBin(encoder)
@@ -150,10 +140,10 @@ func toMrs(source *option.PlainRuleSetCompat) ([]byte, error) {
 		}
 	} else {
 		domainTrie := trie.New[struct{}]()
-		for _, rule := range source.Options.Rules[0].DefaultOptions.Domain {
+		for _, rule := range rules[0].DefaultOptions.Domain {
 			domainTrie.Insert(rule, struct{}{})
 		}
-		for _, rule := range source.Options.Rules[0].DefaultOptions.DomainSuffix {
+		for _, rule := range rules[0].DefaultOptions.DomainSuffix {
 			domainTrie.Insert("+."+rule, struct{}{})
 		}
 		domainSet := domainTrie.NewDomainSet()

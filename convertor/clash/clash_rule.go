@@ -6,37 +6,55 @@ import (
 	"strings"
 
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/ranges"
+	"github.com/sagernet/srsc/adapter"
 	"github.com/sagernet/srsc/convertor/internal/meta_utils"
 
 	"github.com/bahlo/generic-list-go"
 	"golang.org/x/exp/slices"
 )
 
-func toClassicalLine(rule *option.HeadlessRule) []string {
+func toClassicalLine(rule adapter.Rule) ([]string, error) {
 	if rule.Type == C.RuleTypeLogical {
 		var subRules []string
 		for _, subRule := range rule.LogicalOptions.Rules {
-			subRules = append(subRules, "("+strings.Join(toClassicalLine(&subRule), ",")+")")
+			subRuleLines, err := toClassicalLine(subRule)
+			if err != nil {
+				return nil, err
+			}
+			subRules = append(subRules, "("+strings.Join(subRuleLines, ",")+")")
 		}
 		if rule.LogicalOptions.Mode == C.LogicalTypeAnd {
 			if rule.LogicalOptions.Invert {
-				return []string{"NOT,(" + strings.Join(subRules, ","), ")"}
+				return []string{"NOT,(" + strings.Join(subRules, ","), ")"}, nil
 			} else {
-				return []string{"AND,(" + strings.Join(subRules, ","), ")"}
+				return []string{"AND,(" + strings.Join(subRules, ","), ")"}, nil
 			}
 		} else {
 			if rule.LogicalOptions.Invert {
-				return []string{"NOT,(AND,(" + strings.Join(subRules, ","), "))"}
+				return []string{"NOT,(AND,(" + strings.Join(subRules, ","), "))"}, nil
 			} else {
-				return []string{"OR,(" + strings.Join(subRules, ","), ")"}
+				return []string{"OR,(" + strings.Join(subRules, ","), ")"}, nil
 			}
 		}
+	} else if rule.DefaultOptions.Invert {
+		rule.DefaultOptions.Invert = false
+		invertLines, err := toClassicalLine(rule)
+		if err != nil {
+			return nil, err
+		}
+		return []string{"NOT,(" + strings.Join(invertLines, ","), ")"}, nil
+	} else if len(rule.DefaultOptions.QueryType) > 0 ||
+		len(rule.DefaultOptions.NetworkType) > 0 ||
+		rule.DefaultOptions.NetworkIsExpensive ||
+		rule.DefaultOptions.NetworkIsConstrained ||
+		len(rule.DefaultOptions.WIFISSID) > 0 ||
+		len(rule.DefaultOptions.WIFIBSSID) > 0 {
+		return nil, E.New("The rule contains options that Clash does not support")
 	} else {
 		var lines []string
 		for _, domain := range rule.DefaultOptions.Domain {
@@ -63,7 +81,7 @@ func toClassicalLine(rule *option.HeadlessRule) []string {
 		if len(rule.DefaultOptions.PortRange) > 0 {
 			rangeList, err := convertPortRangeList(rule.DefaultOptions.PortRange)
 			if err != nil {
-				return nil
+				return nil, err
 			}
 			lines = append(lines, common.Map(rangeList, func(it string) string {
 				return "DST-PORT," + it
@@ -75,7 +93,7 @@ func toClassicalLine(rule *option.HeadlessRule) []string {
 		if len(rule.DefaultOptions.SourcePortRange) > 0 {
 			rangeList, err := convertPortRangeList(rule.DefaultOptions.SourcePortRange)
 			if err != nil {
-				return nil
+				return nil, err
 			}
 			lines = append(lines, common.Map(rangeList, func(it string) string {
 				return "SRC-PORT," + it
@@ -83,6 +101,9 @@ func toClassicalLine(rule *option.HeadlessRule) []string {
 		}
 		for _, processName := range rule.DefaultOptions.ProcessName {
 			lines = append(lines, "PROCESS-NAME,"+processName)
+		}
+		for _, processNameRegex := range rule.DefaultOptions.PackageName {
+			lines = append(lines, "PROCESS-NAME,"+processNameRegex)
 		}
 		for _, processPath := range rule.DefaultOptions.ProcessPath {
 			lines = append(lines, "PROCESS-PATH,"+processPath)
@@ -97,48 +118,64 @@ func toClassicalLine(rule *option.HeadlessRule) []string {
 			case N.NetworkUDP:
 				lines = append(lines, "NETWORK,UDP")
 			default:
-				return nil
+				return nil, E.New("unknown network: ", network)
 			}
 		}
-		return lines
+		if rule.DefaultOptions.GEOIP != "" {
+			lines = append(lines, "GEOIP,"+rule.DefaultOptions.GEOIP)
+		}
+		if rule.DefaultOptions.SourceGEOIP != "" {
+			lines = append(lines, "SRC-GEOIP,"+rule.DefaultOptions.SourceGEOIP)
+		}
+		if rule.DefaultOptions.IPASN != "" {
+			lines = append(lines, "IP-ASN,"+rule.DefaultOptions.IPASN)
+		}
+		if rule.DefaultOptions.SourceIPASN != "" {
+			lines = append(lines, "SRC-IP-ASN,"+rule.DefaultOptions.SourceIPASN)
+		}
+		if rule.DefaultOptions.Inbound != "" {
+			lines = append(lines, "IN-NAME,"+rule.DefaultOptions.Inbound)
+		}
+		if rule.DefaultOptions.InboundType != "" {
+			lines = append(lines, "IN-TYPE,"+rule.DefaultOptions.InboundType)
+		}
+		if len(rule.DefaultOptions.InboundPort) > 0 {
+			var portRangeList []string
+			for _, portRange := range rule.DefaultOptions.InboundPort {
+				portRangeList = append(portRangeList, F.ToString(portRange.Start, ":", portRange.End))
+			}
+			lines = append(lines, "IN-PORT,"+strings.Join(portRangeList, "/"))
+		}
+		if rule.DefaultOptions.InboundUser != "" {
+			lines = append(lines, "IN-USER,"+rule.DefaultOptions.InboundUser)
+		}
+		return lines, nil
 	}
 }
 
-func fromClassicalLine(ruleLine string) (*option.HeadlessRule, error) {
+func fromClassicalLine(ruleLine string) (*adapter.Rule, error) {
 	ruleType, payload, params := parseRule(ruleLine)
-	var boxRule option.DefaultHeadlessRule
+	var rule adapter.DefaultRule
 	switch ruleType {
 	case "MATCH", "RULE-SET", "SUB-RULE":
 		return nil, E.New("unsupported rule type on classical rule-set: ", ruleType)
-	case "GEOSITE",
-		"GEOIP", "SRC-GEOIP",
-		"IP-ASN", "SRC-IP-ASN",
-		"IP-SUFFIX", "SRC-IP-SUFFIX",
-		"IN-PORT",
-		"DSCP",
-		"PROCESS-NAME-REGEX",
-		"UID",
-		"IN-TYPE",
-		"IN-USER",
-		"IN-NAME":
-		return nil, E.New("unsupported rule type in sing-box: ", ruleType)
 	case "DOMAIN":
-		boxRule.Domain = append(boxRule.Domain, payload)
+		rule.Domain = append(rule.Domain, payload)
 	case "DOMAIN-SUFFIX":
-		boxRule.DomainSuffix = append(boxRule.DomainSuffix, payload)
+		rule.DomainSuffix = append(rule.DomainSuffix, payload)
 	case "DOMAIN-KEYWORD":
-		boxRule.DomainKeyword = append(boxRule.DomainKeyword, payload)
+		rule.DomainKeyword = append(rule.DomainKeyword, payload)
 	case "DOMAIN-REGEX":
-		boxRule.DomainRegex = append(boxRule.DomainRegex, payload)
+		rule.DomainRegex = append(rule.DomainRegex, payload)
 	case "IP-CIDR", "IP-CIDR6":
 		isSrc := slices.Contains(params, "src")
 		if isSrc {
-			boxRule.SourceIPCIDR = append(boxRule.SourceIPCIDR, payload)
+			rule.SourceIPCIDR = append(rule.SourceIPCIDR, payload)
 		} else {
-			boxRule.IPCIDR = append(boxRule.IPCIDR, payload)
+			rule.IPCIDR = append(rule.IPCIDR, payload)
 		}
 	case "SRC-IP-CIDR":
-		boxRule.SourceIPCIDR = append(boxRule.SourceIPCIDR, payload)
+		rule.SourceIPCIDR = append(rule.SourceIPCIDR, payload)
 	case "SRC-PORT":
 		portRanges, err := utils.NewUnsignedRanges[uint16](payload)
 		if err == nil {
@@ -146,9 +183,9 @@ func fromClassicalLine(ruleLine string) (*option.HeadlessRule, error) {
 		}
 		for _, portRange := range portRanges {
 			if portRanges[0].Start() == portRanges[0].End() {
-				boxRule.SourcePort = append(boxRule.SourcePort, portRange.Start())
+				rule.SourcePort = append(rule.SourcePort, portRange.Start())
 			} else {
-				boxRule.SourcePortRange = append(boxRule.SourcePortRange, F.ToString(portRange.Start(), ":", portRange.End()))
+				rule.SourcePortRange = append(rule.SourcePortRange, F.ToString(portRange.Start(), ":", portRange.End()))
 			}
 		}
 	case "DST-PORT":
@@ -158,32 +195,57 @@ func fromClassicalLine(ruleLine string) (*option.HeadlessRule, error) {
 		}
 		for _, portRange := range portRanges {
 			if portRanges[0].Start() == portRanges[0].End() {
-				boxRule.Port = append(boxRule.Port, portRange.Start())
+				rule.Port = append(rule.Port, portRange.Start())
 			} else {
-				boxRule.PortRange = append(boxRule.PortRange, F.ToString(portRange.Start(), ":", portRange.End()))
+				rule.PortRange = append(rule.PortRange, F.ToString(portRange.Start(), ":", portRange.End()))
 			}
 		}
 	case "PROCESS-NAME":
-		boxRule.ProcessName = append(boxRule.ProcessName, payload)
+		// TODO: maybe android package name here
+		rule.ProcessName = append(rule.ProcessName, payload)
 	case "PROCESS-PATH":
-		boxRule.ProcessPath = append(boxRule.ProcessPath, payload)
+		rule.ProcessPath = append(rule.ProcessPath, payload)
 	case "PROCESS-PATH-REGEX":
-		boxRule.ProcessPathRegex = append(boxRule.ProcessPathRegex, payload)
+		rule.ProcessPathRegex = append(rule.ProcessPathRegex, payload)
 	case "NETWORK":
 		switch strings.ToLower(payload) {
 		case N.NetworkTCP:
-			boxRule.Network = append(boxRule.Network, N.NetworkTCP)
+			rule.Network = append(rule.Network, N.NetworkTCP)
 		case N.NetworkUDP:
-			boxRule.Network = append(boxRule.Network, N.NetworkUDP)
+			rule.Network = append(rule.Network, N.NetworkUDP)
 		default:
 			return nil, E.New("unknown network: ", payload)
 		}
+	case "GEOIP":
+		rule.GEOIP = payload
+	case "SRC-GEOIP":
+		rule.SourceGEOIP = payload
+	case "IP-ASN":
+		rule.IPASN = payload
+	case "SRC-IP-ASN":
+		rule.SourceIPASN = payload
+	case "IN-NAME":
+		rule.Inbound = payload
+	case "IN-TYPE":
+		rule.InboundType = payload
+	case "IN-PORT":
+		portRanges, err := utils.NewUnsignedRanges[uint16](payload)
+		if err == nil {
+			return nil, err
+		}
+		for _, portRange := range portRanges {
+			rule.InboundPort = append(rule.InboundPort, ranges.New(portRange.Start(), portRange.End()))
+		}
+	case "IN-USER":
+		rule.InboundUser = payload
 	case "AND", "OR", "NOT":
 		return parseLogicLine(ruleType, payload, fromClassicalLine)
+	default:
+		return nil, E.New("unsupported rule type: ", ruleType)
 	}
-	return &option.HeadlessRule{
+	return &adapter.Rule{
 		Type:           C.RuleTypeDefault,
-		DefaultOptions: boxRule,
+		DefaultOptions: rule,
 	}, nil
 }
 
@@ -203,7 +265,7 @@ func parseRule(ruleRaw string) (string, string, []string) {
 	return "", "", nil
 }
 
-func parseLogicLine(name string, payload string, parser func(ruleLine string) (*option.HeadlessRule, error)) (*option.HeadlessRule, error) {
+func parseLogicLine(name string, payload string, parser func(ruleLine string) (*adapter.Rule, error)) (*adapter.Rule, error) {
 	regex, err := regexp.Compile("\\(.*\\)")
 	if err != nil {
 		return nil, err
@@ -216,7 +278,7 @@ func parseLogicLine(name string, payload string, parser func(ruleLine string) (*
 		return nil, err
 	}
 	subRanges := findSubRuleRange(payload, subAllRanges)
-	var rules []option.HeadlessRule
+	var rules []adapter.Rule
 	for _, subRange := range subRanges {
 		subPayload := payload[subRange.start+1 : subRange.end]
 		subRule, err := parser(subPayload)
@@ -231,9 +293,9 @@ func parseLogicLine(name string, payload string, parser func(ruleLine string) (*
 	} else {
 		mode = C.LogicalTypeAnd
 	}
-	return &option.HeadlessRule{
+	return &adapter.Rule{
 		Type: C.RuleTypeLogical,
-		LogicalOptions: option.LogicalHeadlessRule{
+		LogicalOptions: adapter.LogicalRule{
 			Mode:   mode,
 			Rules:  rules,
 			Invert: name == "NOT",

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	boxConstant "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/srsc/adapter"
 	C "github.com/sagernet/srsc/constant"
@@ -34,7 +33,7 @@ func (c *RuleProvider) ContentType(options adapter.ConvertOptions) string {
 	}
 }
 
-func (c *RuleProvider) From(ctx context.Context, content []byte, options adapter.ConvertOptions) (*option.PlainRuleSetCompat, error) {
+func (c *RuleProvider) From(ctx context.Context, content []byte, options adapter.ConvertOptions) ([]adapter.Rule, error) {
 	format := options.Options.SourceConvertOptions.ClashOptions.SourceFormat
 	var lines []string
 	switch format {
@@ -58,7 +57,7 @@ func (c *RuleProvider) From(ctx context.Context, content []byte, options adapter
 	behavior := options.Options.SourceConvertOptions.ClashOptions.SourceBehavior
 	switch behavior {
 	case "domain":
-		var rule option.DefaultHeadlessRule
+		var rule adapter.DefaultRule
 		if len(lines) > 0 {
 			for _, line := range lines {
 				fromDomainLine(&rule, line)
@@ -69,17 +68,9 @@ func (c *RuleProvider) From(ctx context.Context, content []byte, options adapter
 				fromDomainLine(&rule, scanner.Text())
 			}
 		}
-		return &option.PlainRuleSetCompat{
-			Version: boxConstant.RuleSetVersionCurrent,
-			Options: option.PlainRuleSet{
-				Rules: []option.HeadlessRule{{
-					Type:           boxConstant.RuleTypeDefault,
-					DefaultOptions: rule,
-				}},
-			},
-		}, nil
+		return []adapter.Rule{{Type: boxConstant.RuleTypeDefault, DefaultOptions: rule}}, nil
 	case "ipcidr":
-		var rule option.DefaultHeadlessRule
+		var rule adapter.DefaultRule
 		if len(lines) > 0 {
 			for _, line := range lines {
 				fromIPCIDRLine(&rule, line)
@@ -90,17 +81,9 @@ func (c *RuleProvider) From(ctx context.Context, content []byte, options adapter
 				fromIPCIDRLine(&rule, scanner.Text())
 			}
 		}
-		return &option.PlainRuleSetCompat{
-			Version: boxConstant.RuleSetVersionCurrent,
-			Options: option.PlainRuleSet{
-				Rules: []option.HeadlessRule{{
-					Type:           boxConstant.RuleTypeDefault,
-					DefaultOptions: rule,
-				}},
-			},
-		}, nil
+		return []adapter.Rule{{Type: boxConstant.RuleTypeDefault, DefaultOptions: rule}}, nil
 	case "classical":
-		var rules []option.HeadlessRule
+		var rules []adapter.Rule
 		if len(lines) > 0 {
 			for _, line := range lines {
 				rule, _ := fromClassicalLine(line)
@@ -117,10 +100,7 @@ func (c *RuleProvider) From(ctx context.Context, content []byte, options adapter
 				}
 			}
 		}
-		return &option.PlainRuleSetCompat{
-			Version: boxConstant.RuleSetVersionCurrent,
-			Options: option.PlainRuleSet{Rules: rules},
-		}, nil
+		return rules, nil
 	case "":
 		return nil, E.New("missing source behavior in options")
 	default:
@@ -128,12 +108,13 @@ func (c *RuleProvider) From(ctx context.Context, content []byte, options adapter
 	}
 }
 
-func (c *RuleProvider) To(ctx context.Context, source *option.PlainRuleSetCompat, options adapter.ConvertOptions) ([]byte, error) {
+func (c *RuleProvider) To(ctx context.Context, contentRules []adapter.Rule, options adapter.ConvertOptions) ([]byte, error) {
 	format := options.Options.TargetConvertOptions.ClashOptions.TargetFormat
+	behavior := options.Options.TargetConvertOptions.ClashOptions.TargetBehavior
 	if format == "mrs" {
-		return toMrs(source)
+		return toMrs(behavior, contentRules)
 	}
-	ruleLines, err := toLines(options.Options.TargetConvertOptions.ClashOptions.TargetBehavior, source.Options.Rules)
+	ruleLines, err := toLines(behavior, contentRules)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +146,7 @@ func (c *RuleProvider) To(ctx context.Context, source *option.PlainRuleSetCompat
 	}
 }
 
-func fromDomainLine(rule *option.DefaultHeadlessRule, ruleLine string) {
+func fromDomainLine(rule *adapter.DefaultRule, ruleLine string) {
 	if ruleLine == "" || strings.HasPrefix(ruleLine, "#") {
 		return
 	}
@@ -184,14 +165,14 @@ func fromDomainLine(rule *option.DefaultHeadlessRule, ruleLine string) {
 	}
 }
 
-func fromIPCIDRLine(rule *option.DefaultHeadlessRule, ruleLine string) {
+func fromIPCIDRLine(rule *adapter.DefaultRule, ruleLine string) {
 	if ruleLine == "" || strings.HasPrefix(ruleLine, "#") {
 		return
 	}
 	rule.IPCIDR = append(rule.IPCIDR, ruleLine)
 }
 
-func toLines(behavior string, rules []option.HeadlessRule) ([]string, error) {
+func toLines(behavior string, rules []adapter.Rule) ([]string, error) {
 	var lines []string
 	switch behavior {
 	case "domain":
@@ -216,7 +197,11 @@ func toLines(behavior string, rules []option.HeadlessRule) ([]string, error) {
 		}
 	case "classical":
 		for _, rule := range rules {
-			lines = append(lines, toClassicalLine(&rule)...)
+			ruleLines, err := toClassicalLine(rule)
+			if err == nil {
+				continue
+			}
+			lines = append(lines, ruleLines...)
 		}
 	}
 	return lines, nil

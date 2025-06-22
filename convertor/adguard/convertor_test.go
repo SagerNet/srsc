@@ -25,10 +25,10 @@ example.net^
 example.arpa
 @@|sagernet.example.org^
 `
-	rules, err := ToOptions(strings.NewReader(ruleString), true, logger.NOP())
+	rules, err := ToRules(strings.NewReader(ruleString), true, logger.NOP())
 	require.NoError(t, err)
 	require.Len(t, rules, 1)
-	rule, err := rule.NewHeadlessRule(context.Background(), rules[0])
+	rule, err := rule.NewHeadlessRule(context.Background(), rules[0].ToHeadless())
 	require.NoError(t, err)
 	matchDomain := []string{
 		"example.org",
@@ -76,21 +76,21 @@ example.arpa
 			Domain: domain,
 		}), domain)
 	}
-	ruleFromOptions, err := FromOptions(rules)
+	ruleFromOptions, err := FromRules(rules)
 	require.NoError(t, err)
 	require.Equal(t, ruleString, string(ruleFromOptions))
 }
 
 func TestHosts(t *testing.T) {
 	t.Parallel()
-	rules, err := ToOptions(strings.NewReader(`
+	rules, err := ToRules(strings.NewReader(`
 127.0.0.1 localhost
 ::1 localhost #[IPv6]
 0.0.0.0 google.com
 `), true, logger.NOP())
 	require.NoError(t, err)
 	require.Len(t, rules, 1)
-	rule, err := rule.NewHeadlessRule(context.Background(), rules[0])
+	rule, err := rule.NewHeadlessRule(context.Background(), rules[0].ToHeadless())
 	require.NoError(t, err)
 	matchDomain := []string{
 		"google.com",
@@ -114,13 +114,13 @@ func TestHosts(t *testing.T) {
 
 func TestSimpleHosts(t *testing.T) {
 	t.Parallel()
-	rules, err := ToOptions(strings.NewReader(`
+	rules, err := ToRules(strings.NewReader(`
 example.com
 www.example.org
 `), true, logger.NOP())
 	require.NoError(t, err)
 	require.Len(t, rules, 1)
-	rule, err := rule.NewHeadlessRule(context.Background(), rules[0])
+	rule, err := rule.NewHeadlessRule(context.Background(), rules[0].ToHeadless())
 	require.NoError(t, err)
 	matchDomain := []string{
 		"example.com",
