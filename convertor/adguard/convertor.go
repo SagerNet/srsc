@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/netip"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -423,13 +424,19 @@ parseLine:
 	return []adapter.Rule{currentRule}, nil
 }
 
-var ErrInvalid = E.New("invalid binary AdGuard rule-set")
-
 func FromRules(rules []adapter.Rule) ([]byte, error) {
-	if len(rules) == 0 {
+	var buffer bytes.Buffer
+	for _, rule := range rules {
+		FromRule(rule, &buffer)
+	}
+	if buffer.Len() > 0 {
+		return buffer.Bytes(), nil
+	} else {
 		return nil, os.ErrInvalid
 	}
-	rule := rules[0]
+}
+
+func FromRule(rule adapter.Rule, output *bytes.Buffer) {
 	var (
 		importantDomainAdGuard        []string
 		importantDomain               []string
@@ -452,8 +459,8 @@ parse:
 	for {
 		switch rule.Type {
 		case C.RuleTypeLogical:
-			if !(len(rule.LogicalOptions.Rules) == 2 && rule.LogicalOptions.Rules[0].Type == C.RuleTypeDefault) {
-				return nil, ErrInvalid
+			if !(len(rule.LogicalOptions.Rules) == 2 && rule.LogicalOptions.Rules[0].Type == C.RuleTypeDefault && IsDestinationAddressRule(rule.LogicalOptions.Rules[0].DefaultOptions)) {
+				return
 			}
 			if rule.LogicalOptions.Mode == C.LogicalTypeAnd && rule.LogicalOptions.Rules[0].DefaultOptions.Invert {
 				if len(importantExcludeDomainAdGuard) == 0 && len(importantExcludeDomainRegex) == 0 {
@@ -461,46 +468,32 @@ parse:
 					importantExcludeDomain = rule.LogicalOptions.Rules[0].DefaultOptions.Domain
 					importantExcludeDomainSuffix = rule.LogicalOptions.Rules[0].DefaultOptions.DomainSuffix
 					importantExcludeDomainRegex = rule.LogicalOptions.Rules[0].DefaultOptions.DomainRegex
-					if len(importantExcludeDomainAdGuard)+len(importantExcludeDomainRegex) == 0 {
-						return nil, ErrInvalid
-					}
 				} else {
 					excludeDomainAdGuard = rule.LogicalOptions.Rules[0].DefaultOptions.AdGuardDomain
 					excludeDomain = rule.LogicalOptions.Rules[0].DefaultOptions.Domain
 					excludeDomainSuffix = rule.LogicalOptions.Rules[0].DefaultOptions.DomainSuffix
 					excludeDomainRegex = rule.LogicalOptions.Rules[0].DefaultOptions.DomainRegex
-					if len(excludeDomainAdGuard)+len(excludeDomainRegex) == 0 {
-						return nil, ErrInvalid
-					}
 				}
 			} else if rule.LogicalOptions.Mode == C.LogicalTypeOr && !rule.LogicalOptions.Rules[0].DefaultOptions.Invert {
 				importantDomainAdGuard = rule.LogicalOptions.Rules[0].DefaultOptions.AdGuardDomain
 				importantDomain = rule.LogicalOptions.Rules[0].DefaultOptions.Domain
 				importantDomainSuffix = rule.LogicalOptions.Rules[0].DefaultOptions.DomainSuffix
 				importantDomainRegex = rule.LogicalOptions.Rules[0].DefaultOptions.DomainRegex
-				if len(importantDomainAdGuard)+len(importantDomainRegex) == 0 {
-					return nil, ErrInvalid
-				}
 			} else {
-				return nil, ErrInvalid
+				return
 			}
 			rule = rule.LogicalOptions.Rules[1]
 		case C.RuleTypeDefault:
+			if !IsDestinationAddressRule(rule.DefaultOptions) {
+				return
+			}
 			domainAdGuard = rule.DefaultOptions.AdGuardDomain
 			domain = rule.DefaultOptions.Domain
 			domainSuffix = rule.DefaultOptions.DomainSuffix
 			domainRegex = rule.DefaultOptions.DomainRegex
-			if len(domainAdGuard)+len(domainRegex) == 0 {
-				return nil, ErrInvalid
-			}
-			if len(rules) > 1 {
-				rules = rules[1:]
-				continue parse
-			}
 			break parse
 		}
 	}
-	var output bytes.Buffer
 	for _, ruleLine := range importantDomainAdGuard {
 		output.WriteString(ruleLine)
 		output.WriteString("$important\n")
@@ -579,7 +572,6 @@ parse:
 		output.WriteString(ruleLine)
 		output.WriteString("/\n")
 	}
-	return output.Bytes(), nil
 }
 
 func ignoreIPCIDRRegexp(ruleLine string) bool {
@@ -636,4 +628,19 @@ func parseADGuardIPCIDRLine(ruleLine string) (netip.Prefix, error) {
 		ruleParts = append(ruleParts, 0)
 	}
 	return netip.PrefixFrom(netip.AddrFrom4(*(*[4]byte)(ruleParts)), bitLen), nil
+}
+
+func IsDestinationAddressRule(rule adapter.DefaultRule) bool {
+	var defaultRule adapter.DefaultRule
+	defaultRule.Domain = rule.Domain
+	defaultRule.DomainSuffix = rule.DomainSuffix
+	defaultRule.DomainKeyword = rule.DomainKeyword
+	defaultRule.DomainRegex = rule.DomainRegex
+	// other DA rules
+	defaultRule.IPCIDR = rule.IPCIDR
+	defaultRule.GEOIP = rule.GEOIP
+	defaultRule.IPASN = rule.IPASN
+
+	defaultRule.Invert = rule.Invert
+	return reflect.DeepEqual(rule, defaultRule)
 }

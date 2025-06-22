@@ -4,12 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"reflect"
 	"strings"
 
 	boxConstant "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/srsc/adapter"
 	C "github.com/sagernet/srsc/constant"
+	"github.com/sagernet/srsc/convertor/adguard"
 
 	"gopkg.in/yaml.v3"
 )
@@ -177,22 +179,24 @@ func toLines(behavior string, rules []adapter.Rule) ([]string, error) {
 	switch behavior {
 	case "domain":
 		for _, rule := range rules {
-			if rule.Type == boxConstant.RuleTypeDefault {
-				for _, domain := range rule.DefaultOptions.Domain {
-					lines = append(lines, domain)
-				}
-				for _, domainSuffix := range rule.DefaultOptions.DomainSuffix {
-					lines = append(lines, domainSuffix)
-				}
+			if rule.Type != boxConstant.RuleTypeDefault || !adguard.IsDestinationAddressRule(rule.DefaultOptions) {
+				continue
+			}
+			for _, domain := range rule.DefaultOptions.Domain {
+				lines = append(lines, domain)
+			}
+			for _, domainSuffix := range rule.DefaultOptions.DomainSuffix {
+				lines = append(lines, domainSuffix)
 			}
 		}
 		return lines, nil
 	case "ipcidr":
 		for _, rule := range rules {
-			if rule.Type == boxConstant.RuleTypeDefault {
-				for _, ipCidr := range rule.DefaultOptions.IPCIDR {
-					lines = append(lines, ipCidr)
-				}
+			if rule.Type != boxConstant.RuleTypeDefault || !adguard.IsDestinationAddressRule(rule.DefaultOptions) {
+				continue
+			}
+			for _, ipCidr := range rule.DefaultOptions.IPCIDR {
+				lines = append(lines, ipCidr)
 			}
 		}
 	case "classical":
@@ -205,4 +209,11 @@ func toLines(behavior string, rules []adapter.Rule) ([]string, error) {
 		}
 	}
 	return lines, nil
+}
+
+func IsSimpleDomainRule(rule adapter.DefaultRule) bool {
+	var defaultRule adapter.DefaultRule
+	defaultRule.Domain = rule.Domain
+	defaultRule.DomainSuffix = rule.DomainSuffix
+	return reflect.DeepEqual(rule, defaultRule)
 }

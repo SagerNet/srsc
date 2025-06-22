@@ -14,6 +14,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/rw"
 	"github.com/sagernet/srsc/adapter"
+	"github.com/sagernet/srsc/convertor/adguard"
 	"github.com/sagernet/srsc/convertor/internal/meta_cidr"
 	"github.com/sagernet/srsc/convertor/internal/meta_domainset"
 
@@ -112,42 +113,57 @@ func toMrs(behavior string, rules []adapter.Rule) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	var ruleSize int64
+	for _, rule := range rules {
+		if rule.Type != C.RuleTypeDefault || !adguard.IsDestinationAddressRule(rule.DefaultOptions) {
+			continue
+		}
+		if behavior == "domain" {
+			ruleSize += int64(len(rule.DefaultOptions.Domain) + len(rule.DefaultOptions.DomainSuffix))
+		} else {
+			ruleSize += int64(len(rule.DefaultOptions.IPCIDR))
+		}
+	}
 	if behavior == "domain" {
 		encoder.Write([]byte{0})
-		err = binary.Write(encoder, binary.BigEndian, int64(len(rules[0].DefaultOptions.Domain)+len(rules[0].DefaultOptions.DomainSuffix)))
-		if err != nil {
-			return nil, err
-		}
 	} else {
 		encoder.Write([]byte{1})
-		err = binary.Write(encoder, binary.BigEndian, int64(len(rules[0].DefaultOptions.IPCIDR)))
-		if err != nil {
-			return nil, err
-		}
+	}
+	err = binary.Write(encoder, binary.BigEndian, ruleSize)
+	if err != nil {
+		return nil, err
 	}
 	err = binary.Write(encoder, binary.BigEndian, int64(0))
 	if err != nil {
 		return nil, err
 	}
-	if len(rules[0].DefaultOptions.IPCIDR) > 0 {
-		ipCidrTrie := cidr.NewIpCidrSet()
-		for _, rule := range rules[0].DefaultOptions.IPCIDR {
-			ipCidrTrie.AddIpCidrForString(rule)
+	domainTrie := trie.New[struct{}]()
+	ipCidrTrie := cidr.NewIpCidrSet()
+	for _, rule := range rules {
+		if rule.Type != C.RuleTypeDefault || !adguard.IsDestinationAddressRule(rule.DefaultOptions) {
+			continue
 		}
-		err = ipCidrTrie.WriteBin(encoder)
+		if behavior == "domain" {
+			for _, domain := range rules[0].DefaultOptions.Domain {
+				domainTrie.Insert(domain, struct{}{})
+			}
+			for _, domainSuffix := range rules[0].DefaultOptions.DomainSuffix {
+				domainTrie.Insert("+."+domainSuffix, struct{}{})
+			}
+		} else {
+			for _, ipCidr := range rules[0].DefaultOptions.IPCIDR {
+				ipCidrTrie.AddIpCidrForString(ipCidr)
+			}
+		}
+	}
+	if behavior == "domain" {
+		domainSet := domainTrie.NewDomainSet()
+		err = domainSet.WriteBin(encoder)
 		if err != nil {
 			return nil, E.Cause(err, "compile mrs")
 		}
 	} else {
-		domainTrie := trie.New[struct{}]()
-		for _, rule := range rules[0].DefaultOptions.Domain {
-			domainTrie.Insert(rule, struct{}{})
-		}
-		for _, rule := range rules[0].DefaultOptions.DomainSuffix {
-			domainTrie.Insert("+."+rule, struct{}{})
-		}
-		domainSet := domainTrie.NewDomainSet()
-		err = domainSet.WriteBin(encoder)
+		err = ipCidrTrie.WriteBin(encoder)
 		if err != nil {
 			return nil, E.Cause(err, "compile mrs")
 		}
