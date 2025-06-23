@@ -19,15 +19,34 @@ import (
 var _ adapter.ResourceManager = (*Manager)(nil)
 
 type Manager struct {
-	ctx            context.Context
-	logger         logger.ContextLogger
-	cache          adapter.Cache
-	geoip          adapter.Source
-	geoipConvertor adapter.Convertor
-	geoipOptions   option.SourceConvertOptions
-	ipasn          adapter.Source
-	ipasnConvertor adapter.Convertor
-	ipasnOptions   option.SourceConvertOptions
+	ctx     context.Context
+	logger  logger.ContextLogger
+	cache   adapter.Cache
+	geoip   *Resource
+	geosite *Resource
+	ipasn   *Resource
+}
+
+type Resource struct {
+	adapter.Source
+	adapter.Convertor
+	option.SourceConvertOptions
+}
+
+func NewResource(ctx context.Context, options *option.Resource) (*Resource, error) {
+	resSource, err := source.New(ctx, options.SourceOptions)
+	if err != nil {
+		return nil, err
+	}
+	resConvertor, loaded := convertor.Convertors[options.SourceType]
+	if !loaded {
+		return nil, E.New("unknown source type: ", options.SourceType)
+	}
+	return &Resource{
+		Source:               resSource,
+		Convertor:            resConvertor,
+		SourceConvertOptions: options.SourceConvertOptions,
+	}, nil
 }
 
 func NewManager(ctx context.Context, logger logger.ContextLogger, options option.ResourceOptions) (*Manager, error) {
@@ -37,30 +56,25 @@ func NewManager(ctx context.Context, logger logger.ContextLogger, options option
 		cache:  service.FromContext[adapter.Cache](ctx),
 	}
 	if options.GEOIP != nil {
-		geoipSource, err := source.New(ctx, options.GEOIP.SourceOptions)
+		geoip, err := NewResource(ctx, options.GEOIP)
 		if err != nil {
-			return nil, E.Cause(err, "create source for GEOIP")
+			return nil, E.Cause(err, "create resource for GEOIP")
 		}
-		geoipConvertor, loaded := convertor.Convertors[options.GEOIP.SourceType]
-		if !loaded {
-			return nil, E.New("unknown source type for GEOIP: ", options.GEOIP.SourceType)
+		m.geoip = geoip
+	}
+	if options.GEOSite != nil {
+		geosite, err := NewResource(ctx, options.GEOSite)
+		if err != nil {
+			return nil, E.Cause(err, "create resource for GEOSite")
 		}
-		m.geoip = geoipSource
-		m.geoipConvertor = geoipConvertor
-		m.geoipOptions = options.GEOIP.SourceConvertOptions
+		m.geosite = geosite
 	}
 	if options.IPASN != nil {
-		ipasnSource, err := source.New(ctx, options.IPASN.SourceOptions)
+		ipasn, err := NewResource(ctx, options.IPASN)
 		if err != nil {
-			return nil, E.Cause(err, "create source for IPASN")
+			return nil, E.Cause(err, "create resource for IPASN")
 		}
-		ipasnConvertor, loaded := convertor.Convertors[options.IPASN.SourceType]
-		if !loaded {
-			return nil, E.New("unknown source type for IPASN: ", options.IPASN.SourceType)
-		}
-		m.ipasn = ipasnSource
-		m.ipasnConvertor = ipasnConvertor
-		m.ipasnOptions = options.IPASN.SourceConvertOptions
+		m.ipasn = ipasn
 	}
 	return m, nil
 }
@@ -69,17 +83,34 @@ func (m *Manager) GEOIPConfigured() bool {
 	return m.geoip != nil
 }
 
-func (m *Manager) GEOIP(country string) (*boxOption.DefaultHeadlessRule, error) {
+func (m *Manager) GEOIP(code string) (*boxOption.DefaultHeadlessRule, error) {
 	if m.geoip == nil {
 		return nil, E.New("GEOIP resource source is not configured")
 	}
 	cachePath, err := m.geoip.Path(map[string]string{
-		"country": country,
+		"code": code,
 	})
 	if err != nil {
 		return nil, E.Cause(err, "evaluate source path")
 	}
-	return m.fetch(cachePath, "res.geoip."+cachePath)
+	return m.fetch(m.geoip, cachePath, "res.geoip."+cachePath)
+}
+
+func (m *Manager) GEOSiteConfigured() bool {
+	return m.geosite != nil
+}
+
+func (m *Manager) GEOSite(code string) (*boxOption.DefaultHeadlessRule, error) {
+	if m.geosite == nil {
+		return nil, E.New("GEOSite resource source is not configured")
+	}
+	cachePath, err := m.geosite.Path(map[string]string{
+		"code": code,
+	})
+	if err != nil {
+		return nil, E.Cause(err, "evaluate source path")
+	}
+	return m.fetch(m.geosite, cachePath, "res.geosite."+cachePath)
 }
 
 func (m *Manager) IPASNConfigured() bool {
@@ -96,15 +127,15 @@ func (m *Manager) IPASN(asn string) (*boxOption.DefaultHeadlessRule, error) {
 	if err != nil {
 		return nil, E.Cause(err, "evaluate source path")
 	}
-	return m.fetch(cachePath, "res.ipasn."+cachePath)
+	return m.fetch(m.ipasn, cachePath, "res.ipasn."+cachePath)
 }
 
-func (m *Manager) fetch(cachePath string, cacheKey string) (*boxOption.DefaultHeadlessRule, error) {
+func (m *Manager) fetch(r *Resource, cachePath string, cacheKey string) (*boxOption.DefaultHeadlessRule, error) {
 	cachedBinary, err := m.cache.LoadBinary(cacheKey)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, E.Cause(err, "load cache binary")
 	}
-	lastUpdated := m.geoip.LastUpdated(cachePath)
+	lastUpdated := r.LastUpdated(cachePath)
 	if cachedBinary != nil && !lastUpdated.IsZero() && cachedBinary.LastUpdated.Equal(lastUpdated) {
 		return m.loadCache(cachedBinary)
 	}
@@ -113,7 +144,7 @@ func (m *Manager) fetch(cachePath string, cacheKey string) (*boxOption.DefaultHe
 		fetchBody.ETag = cachedBinary.LastEtag
 		fetchBody.LastUpdated = cachedBinary.LastUpdated
 	}
-	response, err := m.geoip.Fetch(cachePath, fetchBody)
+	response, err := r.Fetch(cachePath, fetchBody)
 	if err != nil {
 		return nil, E.Cause(err, "fetch source")
 	}
@@ -134,9 +165,9 @@ func (m *Manager) fetch(cachePath string, cacheKey string) (*boxOption.DefaultHe
 		return nil, E.Cause(err, "fetch source: empty content")
 	}
 	var rules []adapter.Rule
-	rules, err = m.geoipConvertor.From(m.ctx, response.Content, adapter.ConvertOptions{
+	rules, err = r.From(m.ctx, response.Content, adapter.ConvertOptions{
 		Options: option.ConvertOptions{
-			SourceConvertOptions: m.geoipOptions,
+			SourceConvertOptions: r.SourceConvertOptions,
 		},
 	})
 	if err != nil {
@@ -149,8 +180,8 @@ func (m *Manager) fetch(cachePath string, cacheKey string) (*boxOption.DefaultHe
 	} else if !rules[0].Headlessable() {
 		return nil, E.New("unexpected complex resource: unsupported by sing-box")
 	}
-	binary, err := convertor.Convertors[C.ConvertorTypeRuleSetSource].To(m.ctx, rules, adapter.ConvertOptions{
-		Options: option.ConvertOptions{TargetConvertOptions: option.TargetConvertOptions{TargetType: C.ConvertorTypeRuleSetSource}},
+	binary, err := convertor.Convertors[C.ConvertorTypeRuleSetBinary].To(m.ctx, rules, adapter.ConvertOptions{
+		Options: option.ConvertOptions{TargetConvertOptions: option.TargetConvertOptions{TargetType: C.ConvertorTypeRuleSetBinary}},
 	})
 	if err != nil {
 		return nil, E.Cause(err, "encode JSON")
@@ -168,8 +199,8 @@ func (m *Manager) fetch(cachePath string, cacheKey string) (*boxOption.DefaultHe
 }
 
 func (m *Manager) loadCache(cachedBinary *adapter.SavedBinary) (*boxOption.DefaultHeadlessRule, error) {
-	rules, err := convertor.Convertors[C.ConvertorTypeRuleSetSource].From(m.ctx, cachedBinary.Content, adapter.ConvertOptions{
-		Options: option.ConvertOptions{SourceConvertOptions: option.SourceConvertOptions{SourceType: C.ConvertorTypeRuleSetSource}},
+	rules, err := convertor.Convertors[C.ConvertorTypeRuleSetBinary].From(m.ctx, cachedBinary.Content, adapter.ConvertOptions{
+		Options: option.ConvertOptions{SourceConvertOptions: option.SourceConvertOptions{SourceType: C.ConvertorTypeRuleSetBinary}},
 	})
 	if err != nil {
 		return nil, err

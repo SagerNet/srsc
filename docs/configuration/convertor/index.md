@@ -1,14 +1,5 @@
 # Convertor
 
-### Structure
-
-```json
-{
-  "source_type": "",
-  "target_type": ""
-}
-```
-
 | Convertor | Format                |
 |-----------|-----------------------|
 | `source`  | [Source](./source/)   |
@@ -16,13 +7,35 @@
 | `adguard` | [AdGuard](./adguard/) |
 | `clash`   | [Clash](./clash/)     |
 
-### Fields
+### Source Structure
+
+```json
+{
+  "source_type": "",
+  
+  ... // Type Specific Fields
+}
+```
+
+### Target Structure
+
+```json
+{
+  "target_type": "",
+  
+  ... // Type Specific Fields
+}
+```
+
+### Source Fields
 
 #### source_type
 
 ==Required==
 
 The type of the source convertor.
+
+### Target Fields
 
 #### target_type
 

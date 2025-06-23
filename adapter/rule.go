@@ -48,9 +48,9 @@ type DefaultRule struct {
 
 	GEOIP       []string
 	SourceGEOIP []string
-
 	IPASN       []string
 	SourceIPASN []string
+	GEOSite     []string
 
 	Inbound     []string
 	InboundType []string

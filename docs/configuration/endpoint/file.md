@@ -4,40 +4,42 @@ The File endpoint converts rule-sets from local or remote files.
 
 ### Structure
 
-```json
-{
-  "type": "file",
-  "source": "",
-  
-  ..., // Source Fields
-  ... // Convertor Fields
-}
-```
-
-### Source Structure
-
-=== "Local"
+=== "Structure"
 
     ```json
     {
-      "source": "local",
-      "path": ""
-    }
-    ```
-
-=== "Remote"
-
-    ```json
-    {
-      "source": "remote",
-      "url": "",
-      "user_agent": "",
-      "ttl": "",
-      "tls": {},
+      "type": "file",
+      "source": "",
       
-      ... // Dial Fields
+      ..., // Source Fetch Fields
+      ... // Convertor Fields
     }
     ```
+
+=== "Source Fetch Structure"
+
+    === "Local"
+    
+        ```json
+        {
+          "source": "local",
+          "path": ""
+        }
+        ```
+    
+    === "Remote"
+    
+        ```json
+        {
+          "source": "remote",
+          "url": "",
+          "user_agent": "",
+          "ttl": "",
+          "tls": {},
+          
+          ... // Dial Fields
+        }
+        ```
 
 ### Fields
 

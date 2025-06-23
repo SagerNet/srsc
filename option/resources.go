@@ -6,8 +6,9 @@ import (
 )
 
 type ResourceOptions struct {
-	GEOIP *Resource `json:"geoip,omitempty"`
-	IPASN *Resource `json:"ipasn,omitempty"`
+	GEOIP   *Resource `json:"geoip,omitempty"`
+	GEOSite *Resource `json:"geosite,omitempty"`
+	IPASN   *Resource `json:"ipasn,omitempty"`
 }
 
 type Resource struct {

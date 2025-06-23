@@ -133,6 +133,9 @@ func toClassicalLine(rule adapter.Rule) ([]string, error) {
 		for _, sourceIPASN := range rule.DefaultOptions.SourceIPASN {
 			lines = append(lines, "SRC-IP-ASN,"+sourceIPASN)
 		}
+		for _, geosite := range rule.DefaultOptions.GEOSite {
+			lines = append(lines, "GEOSITE,"+geosite)
+		}
 		for _, inbound := range rule.DefaultOptions.Inbound {
 			lines = append(lines, "IN-NAME,"+inbound)
 		}
@@ -224,6 +227,8 @@ func fromClassicalLine(ruleLine string) (*adapter.Rule, error) {
 		rule.IPASN = append(rule.IPASN, payload)
 	case "SRC-IP-ASN":
 		rule.SourceIPASN = append(rule.SourceIPASN, payload)
+	case "GEOSITE":
+		rule.GEOSite = append(rule.GEOSite, payload)
 	case "IN-NAME":
 		rule.Inbound = append(rule.Inbound, payload)
 	case "IN-TYPE":

@@ -11,7 +11,8 @@ srsc uses JSON for configuration files.
   "listen_port": 0,
   "endpoints": {},
   "tls": {},
-  "cache": {}
+  "cache": {},
+  "resources": {}
 }
 ```
 
@@ -44,6 +45,10 @@ TLS configuration, see [TLS](https://sing-box.sagernet.org/configuration/shared/
 #### cache
 
 Cache configuration, see [Cache](./cache/).
+
+#### resources
+
+Resource configuration, see [Resources](./resources/).
 
 ### Check
 

@@ -11,7 +11,9 @@ import (
 
 type ResourceManager interface {
 	GEOIPConfigured() bool
-	GEOIP(country string) (*option.DefaultHeadlessRule, error)
+	GEOIP(code string) (*option.DefaultHeadlessRule, error)
+	GEOSiteConfigured() bool
+	GEOSite(code string) (*option.DefaultHeadlessRule, error)
 	IPASNConfigured() bool
 	IPASN(asn string) (*option.DefaultHeadlessRule, error)
 }
@@ -68,6 +70,27 @@ func embedResourceRule(ctx context.Context, resourceManager ResourceManager, rul
 			}
 		}
 		rule.DefaultOptions.SourceGEOIP = nil
+	}
+	if resourceManager.GEOSiteConfigured() {
+		for _, geosite := range rule.DefaultOptions.GEOSite {
+			geositeRule, err := resourceManager.GEOSite(geosite)
+			if err != nil {
+				return E.Cause(err, "fetch GEOSite resource: ", rule.DefaultOptions.GEOSite)
+			}
+			if len(geositeRule.Domain) > 0 {
+				rule.DefaultOptions.Domain = append(rule.DefaultOptions.Domain, geositeRule.Domain...)
+			}
+			if len(geositeRule.DomainSuffix) > 0 {
+				rule.DefaultOptions.DomainSuffix = append(rule.DefaultOptions.DomainSuffix, geositeRule.DomainSuffix...)
+			}
+			if len(geositeRule.DomainKeyword) > 0 {
+				rule.DefaultOptions.DomainKeyword = append(rule.DefaultOptions.DomainKeyword, geositeRule.DomainKeyword...)
+			}
+			if len(geositeRule.DomainRegex) > 0 {
+				rule.DefaultOptions.DomainRegex = append(rule.DefaultOptions.DomainRegex, geositeRule.DomainRegex...)
+			}
+		}
+		rule.DefaultOptions.GEOSite = nil
 	}
 	if resourceManager.IPASNConfigured() {
 		for _, ipasn := range rule.DefaultOptions.IPASN {

@@ -24,6 +24,6 @@ Endpoint path of the HTTP server.
 
 ==Required==
 
-| Type   | Format                   | 
-|--------|--------------------------|
-| `file` | [File](./endpoint/file/) |
+| Type   | Format          | 
+|--------|-----------------|
+| `file` | [File](./file/) |

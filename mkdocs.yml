@@ -50,6 +50,7 @@ nav:
           - configuration/endpoint/index.md
           - File: configuration/endpoint/file.md
       - Cache: configuration/cache.md
+      - Resources: configuration/resources.md
       - Convertor:
         - configuration/convertor/index.md
         - Source: configuration/convertor/source.md
