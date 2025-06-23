@@ -13,5 +13,4 @@ var Convertors = map[string]adapter.Convertor{
 	C.ConvertorTypeAdGuardRuleSet:    (*adguard.RuleSet)(nil),
 	C.ConvertorTypeClashRuleProvider: (*clash.RuleProvider)(nil),
 	C.ConvertorTypeSurgeRuleSet:      (*SurgeRuleSet)(nil),
-	C.ConvertorTypeSurgeDomainSet:    (*SurgeDomainSet)(nil),
 }

@@ -6,6 +6,7 @@
 | `binary`  | [Binary](./target/)   |
 | `adguard` | [AdGuard](./adguard/) |
 | `clash`   | [Clash](./clash/)     |
+| `surge`  | [Surge](./surge/)     |
 
 ### Source Structure
 

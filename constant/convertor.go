@@ -6,5 +6,4 @@ const (
 	ConvertorTypeAdGuardRuleSet    = "adguard"
 	ConvertorTypeClashRuleProvider = "clash"
 	ConvertorTypeSurgeRuleSet      = "surge"
-	ConvertorTypeSurgeDomainSet    = "surge-domain"
 )

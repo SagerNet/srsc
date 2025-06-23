@@ -11,7 +11,8 @@ it can only be converted to and from `bianry`.
 
 ```json
 {
-  "source_type": "adguard"
+  "source_type": "adguard",
+  "accept_extended_rules": false
 }
 ```
 
@@ -22,3 +23,13 @@ it can only be converted to and from `bianry`.
   "target_type": "adguard"
 }
 ```
+
+### Source Fields
+
+#### accept_extended_rules
+
+If not enabled, only rule items that can be expressed by `domain`, `domain_suffix`, `domain_regex` will be parsed, and other items will be ignored.
+
+Otherwise, most rules supported by AdGuard DNS Filter will be supported, but can only be converted to and from sing-box rule-set binary.
+
+For compatibility, see [AdGuard DNS Filter](https://sing-box.sagernet.org/configuration/rule-set/adguard/).
