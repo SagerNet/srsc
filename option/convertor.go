@@ -24,6 +24,20 @@ func (o *ConvertOptions) UnmarshalJSON(bytes []byte) error {
 	return badjson.UnmarshallExcludedMulti(bytes, &o.SourceConvertOptions, &o.TargetConvertOptions)
 }
 
+func (o *ConvertOptions) ConvertRequired() bool {
+	if o.SourceType != o.TargetType {
+		return true
+	}
+	switch o.SourceType {
+	case C.ConvertorTypeClashRuleProvider:
+		return o.SourceConvertOptions.ClashOptions.SourceFormat != o.TargetConvertOptions.ClashOptions.TargetFormat ||
+			o.SourceConvertOptions.ClashOptions.SourceBehavior != o.TargetConvertOptions.ClashOptions.TargetBehavior
+	case C.ConvertorTypeSurgeRuleSet:
+		return o.SourceConvertOptions.SurgeOptions.SourceBehavior != o.TargetConvertOptions.SurgeOptions.TargetBehavior
+	}
+	return false
+}
+
 type _SourceConvertOptions struct {
 	SourceType     string                         `json:"source_type,omitempty"`
 	AdGuardOptions AdGuardRuleSetSourceOptions    `json:"-"`

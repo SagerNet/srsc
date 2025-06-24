@@ -30,16 +30,18 @@ type FileEndpoint struct {
 	sourceConvertor adapter.Convertor
 	targetConvertor adapter.Convertor
 	convertOptions  option.ConvertOptions
+	convertRequired bool
 }
 
 func NewFileEndpoint(ctx context.Context, logger logger.ContextLogger, index int, options option.FileEndpoint) (*FileEndpoint, error) {
 	ep := &FileEndpoint{
-		ctx:            ctx,
-		logger:         logger,
-		cache:          service.FromContext[adapter.Cache](ctx),
-		resources:      service.FromContext[adapter.ResourceManager](ctx),
-		index:          index,
-		convertOptions: options.ConvertOptions,
+		ctx:             ctx,
+		logger:          logger,
+		cache:           service.FromContext[adapter.Cache](ctx),
+		resources:       service.FromContext[adapter.ResourceManager](ctx),
+		index:           index,
+		convertOptions:  options.ConvertOptions,
+		convertRequired: options.ConvertOptions.ConvertRequired(),
 	}
 	endpointSource, err := source.New(ctx, options.SourceOptions)
 	if err != nil {
@@ -126,20 +128,20 @@ func (f *FileEndpoint) serveHTTP0(w http.ResponseWriter, r *http.Request) error 
 		w.WriteHeader(http.StatusBadGateway)
 		return E.Cause(err, "fetch source: empty content")
 	}
-	// binary := response.Content
-	// if f.sourceConvertor.Type() != f.targetConvertor.Type() {
-	var rules []adapter.Rule
-	rules, err = f.sourceConvertor.From(f.ctx, response.Content, convertOptions)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return E.Cause(err, "decode source")
+	binary := response.Content
+	if f.convertRequired {
+		var rules []adapter.Rule
+		rules, err = f.sourceConvertor.From(f.ctx, response.Content, convertOptions)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return E.Cause(err, "decode source")
+		}
+		binary, err = f.targetConvertor.To(f.ctx, rules, convertOptions)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return E.Cause(err, "encode target")
+		}
 	}
-	binary, err := f.targetConvertor.To(f.ctx, rules, convertOptions)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return E.Cause(err, "encode target")
-	}
-	//}
 	cachedBinary = &adapter.SavedBinary{
 		Content:     binary,
 		LastUpdated: response.LastUpdated,

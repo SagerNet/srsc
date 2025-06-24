@@ -52,12 +52,12 @@ nav:
       - Cache: configuration/cache.md
       - Resources: configuration/resources.md
       - Convertor:
-        - configuration/convertor/index.md
-        - Source: configuration/convertor/source.md
-        - Binary: configuration/convertor/binary.md
-        - AdGuard: configuration/convertor/adguard.md
-        - Clash: configuration/convertor/clash.md
-        - Surge: configuration/convertor/surge.md
+          - configuration/convertor/index.md
+          - Source: configuration/convertor/source.md
+          - Binary: configuration/convertor/binary.md
+          - AdGuard: configuration/convertor/adguard.md
+          - Clash: configuration/convertor/clash.md
+          - Surge: configuration/convertor/surge.md
 markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
